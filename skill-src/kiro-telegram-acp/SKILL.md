@@ -1,13 +1,13 @@
 ---
 name: kiro-telegram-acp
-description: Build and document an OpenClaw integration that relays Telegram commands to a Kiro CLI agent through ACP Bridge. Use when creating or explaining a setup where Telegram messages pass through an OpenClaw hook into an ACP Bridge HTTP endpoint and then into a Kiro agent, including hook design, message suppression, agent prompts, knowledge-base files, safety boundaries, and public packaging as an OpenClaw skill.
+description: Build and document an OpenClaw integration that relays Telegram commands to a Kiro agent through an ACP client stack, with `openclaw acp` providing the stdio bridge. Use when creating or explaining a setup where Telegram messages pass through an OpenClaw hook into a downstream Kiro agent, including hook design, message suppression, agent prompts, knowledge-base files, safety boundaries, and public packaging as an OpenClaw skill.
 ---
 
 # Kiro Telegram ACP
 
 ## Overview
 
-Implement a lightweight relay pattern: capture `/kiro` commands in an OpenClaw hook, suppress the main assistant reply, forward the stripped prompt to a local ACP Bridge endpoint, then send the downstream agent response back to Telegram.
+Implement a lightweight relay pattern: capture `/kiro` commands in an OpenClaw hook, suppress the main assistant reply, forward the stripped prompt through a local ACP client or wrapper, then send the downstream agent response back to Telegram.
 
 Keep the architecture simple. The hook should route, not think. Put durable behavior in the downstream Kiro agent prompt and knowledge files.
 
@@ -18,12 +18,14 @@ Use this chain:
 1. Telegram direct message starts with `/kiro`
 2. OpenClaw hook receives `message:received`
 3. Hook validates channel, chat type, and command prefix
-4. Hook strips `/kiro` and forwards the remaining prompt to ACP Bridge
-5. ACP Bridge calls the target Kiro agent
+4. Hook strips `/kiro` and forwards the remaining prompt through a local ACP client or wrapper
+5. The client or wrapper talks to `openclaw acp`, which then calls the target Kiro agent
 6. Hook sends the returned text back to Telegram
 7. Hook returns `{ suppress: true }` so the main OpenClaw assistant stays silent for that message
 
-Use a fixed local ACP Bridge URL by default, such as `http://127.0.0.1:7800`.
+This skill is documented for OpenClaw `2026.4.2`, where `openclaw acp` is a stdio bridge rather than an HTTP server.
+
+It is also not a one-shot `ask` CLI, so you should document or provide the ACP client or wrapper layer explicitly.
 
 ## Implementation Rules
 
@@ -33,7 +35,7 @@ The hook should only do four things:
 
 - detect eligible inbound messages
 - normalize the user prompt
-- call the ACP Bridge endpoint
+- call a local ACP client or wrapper
 - send the downstream reply back to Telegram
 
 Do not duplicate business logic, memory, or persona inside the hook unless absolutely necessary.
@@ -67,11 +69,13 @@ After dispatching the background handler, return `{ suppress: true }` immediatel
 
 ### 5. Handle failures explicitly
 
-On ACP Bridge or Telegram send failure:
+On ACP client, wrapper, or Telegram send failure:
 
 - log the error
 - send a short failure notice back to the Telegram chat when possible
 - avoid crashing the hook process
+
+Document pairing and scope approval requirements for ACP usage.
 
 ## Public Skill Deliverables
 
@@ -80,6 +84,7 @@ When packaging this pattern as a public OpenClaw skill, include:
 - `SKILL.md` with the integration workflow and constraints
 - `references/architecture.md` describing the end-to-end message flow
 - `references/hook-template.ts` with a reusable TypeScript hook example
+- `references/kiro-acp-ask.js` with a wrapper contract stub
 - `references/kiro-agent-template.json` with a sample Kiro agent definition
 - optional public README outside the skill folder if publishing a GitHub repo for humans
 
@@ -93,9 +98,9 @@ Decide all fixed values up front:
 
 - Telegram scope: direct chat only or broader
 - command prefix: usually `/kiro`
-- ACP Bridge base URL
 - target agent name, such as `kiro`
 - response timeout
+- wrapper command name or ACP client invocation
 - failure message format
 
 ### Step 2: Implement the OpenClaw hook
@@ -113,7 +118,7 @@ The handler should:
 3. reject non-direct sessions if required
 4. reject content that does not start with `/kiro`
 5. strip the prefix and trim whitespace
-6. call the ACP Bridge endpoint
+6. call the local ACP client or wrapper
 7. send the result to Telegram
 8. return `{ suppress: true }`
 
@@ -132,8 +137,10 @@ Store stable knowledge in separate markdown files so the Kiro agent can load the
 
 State these explicitly in docs:
 
-- this pattern assumes a locally reachable ACP Bridge
-- the hook must have permission to talk to Telegram and the bridge
+- this pattern assumes `openclaw acp` is available locally
+- the hook must have permission to talk to Telegram and invoke the local wrapper or ACP client
+- `openclaw acp` itself is a bridge, not a one-shot request CLI
+- ACP usage may require device pairing and scope approval
 - replies are only as safe as the downstream agent prompt and available tools
 - public examples must remove personal bot tokens, user IDs, and private file paths
 
@@ -143,6 +150,7 @@ Read these files when you need concrete examples:
 
 - `references/architecture.md` for a concise architecture summary
 - `references/hook-template.ts` for a reusable OpenClaw hook example
+- `references/kiro-acp-ask.js` for the wrapper contract stub
 - `references/kiro-agent-template.json` for a sample Kiro agent definition
 
 ## Validation Checklist
@@ -152,48 +160,51 @@ Before publishing or reusing the pattern, verify:
 - `/kiro hello` produces one Telegram reply, not two
 - non-`/kiro` messages do not trigger the hook
 - empty `/kiro` returns a usage hint
-- ACP Bridge timeout produces a readable error
+- ACP timeout produces a readable error
+- pairing failures point users to approval steps
 - all personal secrets, IDs, and local paths are replaced with placeholders in public docs
 
 ## Alternative Designs
 
-### Option A: OpenClaw hook -> ACP Bridge HTTP -> Kiro CLI
+### Option A: OpenClaw hook -> ACP client/wrapper -> `openclaw acp` -> Kiro agent
 
-Use this as the default recommendation.
+Use this as the default recommendation for OpenClaw `2026.4.2`.
 
 Pros:
 
-- minimal moving parts in OpenClaw
-- easy to reason about
+- correct for current transport behavior
+- keeps the hook logic simple
 - good separation between routing and agent behavior
 
 Cons:
 
-- depends on a local HTTP bridge service
+- depends on local OpenClaw ACP availability
+- requires an extra wrapper/client component
+- requires pairing and scope approval in some environments
 
-### Option B: OpenClaw ACP session spawn instead of custom hook
+### Option B: OpenClaw hook -> custom HTTP wrapper -> `openclaw acp` -> Kiro agent
 
-Use when you want OpenClaw to own the downstream ACP lifecycle more directly.
+Use when you intentionally provide your own local HTTP layer on top of ACP.
 
 Pros:
 
-- more native to OpenClaw session management
-- easier to extend into persistent ACP threads
+- can simplify integrations that expect HTTP
+- may fit other local orchestration systems
 
 Cons:
 
-- not as lightweight for a simple `/kiro` relay
-- may require more OpenClaw-specific orchestration
+- adds another component to maintain
+- should not be presented as the default OpenClaw behavior
 
 ### Option C: Direct CLI execution from a hook
 
-Avoid unless ACP Bridge is unavailable.
+Avoid unless ACP is unavailable.
 
 Cons:
 
 - weaker isolation
-n- harder error handling
+- harder error handling
 - more fragile process management
 - higher chance of duplicated logic
 
-Recommendation: prefer Option A for a public starter pattern.
+Recommendation: prefer Option A for a public starter pattern on current OpenClaw builds.
