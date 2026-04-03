@@ -1,13 +1,13 @@
 # openclaw-kiro-telegram-acp
 
-Public starter kit for routing Telegram `/kiro` commands through OpenClaw to a downstream Kiro agent over ACP Bridge.
+Public starter kit for routing Telegram `/kiro` commands through OpenClaw to a downstream Kiro agent through an ACP client stack, with OpenClaw providing the stdio ACP bridge.
 
 ## What this is
 
 This repo documents and packages a practical architecture:
 
 ```text
-Telegram -> OpenClaw hook -> ACP Bridge -> Kiro CLI agent -> Telegram
+Telegram -> OpenClaw hook -> ACP client/wrapper -> openclaw acp (stdio bridge) -> Kiro agent -> Telegram
 ```
 
 Use it when you want:
@@ -17,32 +17,40 @@ Use it when you want:
 - Kiro to own persona, KB, and reasoning
 - a clean public example that others can adapt
 
+## Compatibility note
+
+This repo is written for OpenClaw `2026.4.2`, where `openclaw acp` behaves as a **stdio JSON-RPC bridge**, not an HTTP server and not a one-shot `ask` command.
+
+That means a Telegram hook cannot treat `openclaw acp` like `curl` or `openclaw acp ask ...`. You need a compatible ACP client or a small local wrapper that speaks ACP over stdio.
+
 ## Included
 
-- `kiro-telegram-acp.skill` — packaged OpenClaw skill
+- `kiro-telegram-acp.skill` — packaged OpenClaw skill artifact
 - `skill-src/` — source of the skill
-- `examples/hook-template.ts` — reusable hook template
+- `examples/hook-template.ts` — reusable hook template showing how to call a local wrapper command from OpenClaw
+- `examples/kiro-acp-ask.js` — wrapper contract stub for one-shot ACP requests
 - `examples/kiro-agent-template.json` — sample Kiro agent config
 - `docs/architecture.md` — short architecture walkthrough
-- `docs/deployment.md` — deployment steps and production hardening notes
+- `docs/deployment.md` — deployment steps and troubleshooting notes
+- `docs/wrapper-contract.md` — the stdout/stderr contract expected by the hook
 
 ## How it works
 
 1. User sends `/kiro ...` in Telegram
 2. OpenClaw hook catches the message on `message:received`
 3. Hook validates source and strips the `/kiro` prefix
-4. Hook POSTs the prompt to a local ACP Bridge endpoint
-5. ACP Bridge forwards the request to the configured Kiro agent
+4. Hook calls a local ACP-compatible wrapper command
+5. The wrapper talks to `openclaw acp` over stdio and forwards the request to the configured Kiro agent
 6. Hook sends the returned text back to Telegram
 7. Hook returns `{ suppress: true }` so OpenClaw does not answer twice
 
 ## Recommended design choices
 
 - Keep the hook thin: routing only
-- Put language/persona/KB in the Kiro agent definition
-- Bind ACP Bridge to localhost
+- Put language, persona, and KB in the Kiro agent definition
 - Restrict to Telegram direct chats
 - Add an allowlist if the relay is sensitive
+- Handle pairing and scope approval explicitly during setup
 
 ## Prerequisites
 
@@ -50,8 +58,8 @@ You need:
 
 - OpenClaw running with Telegram configured
 - a working hook environment in OpenClaw
-- ACP Bridge reachable at something like `http://127.0.0.1:7800`
-- a Kiro agent exposed by the bridge
+- a Kiro agent reachable through an ACP client that targets `openclaw acp`
+- device scopes approved for ACP usage
 - GitHub CLI if you want to publish your own variant
 
 ## Install the skill
@@ -97,21 +105,24 @@ clawhub update kiro-telegram-acp --workdir ~/.openclaw/workspace
 
 Create a hook similar to `examples/hook-template.ts` and adjust:
 
-- `ACP_BRIDGE_URL`
 - target agent name
 - allowed chat IDs
 - timeout
+- wrapper command name
 - reply formatting
 
 Important behavior:
 
 - trigger only on Telegram direct messages
 - process only messages starting with `/kiro`
+- invoke your local ACP wrapper command
 - return `{ suppress: true }`
 
 ## Kiro agent setup
 
 Use `examples/kiro-agent-template.json` as a starting point.
+
+If you want the example hook to run end-to-end, also implement the wrapper contract documented in `docs/wrapper-contract.md`, starting from `examples/kiro-acp-ask.js`.
 
 Move stable instructions and reusable knowledge into markdown KB files, then point the Kiro agent JSON at those files.
 
@@ -128,20 +139,45 @@ Before pushing publicly, scrub:
 
 ## Troubleshooting
 
-### OpenClaw answers in addition to Kiro
-
-Your hook is likely not returning `{ suppress: true }` for the matched message.
-
-Also check that the hook only exists in **one** location. If the same hook name appears in both `~/.openclaw/hooks/` (managed) and `~/.openclaw/workspace/hooks/` (workspace), the workspace copy is ignored and the managed version runs. Having stale code in either location can cause unexpected behavior. Remove the duplicate to avoid confusion.
-
 ### `/kiro` does nothing
 
 Check:
 
 - hook trigger event is correct
-- channel/session filters are not too strict
-- ACP Bridge URL is reachable
+- channel and session filters are not too strict
+- allowed chat IDs are correct
 - target Kiro agent name exists
+- your local ACP wrapper can reach the agent through `openclaw acp`
+
+### `pairing required`
+
+Your device or client likely does not have the scopes needed for ACP usage yet.
+
+Approve the latest device request and retry:
+
+```bash
+openclaw devices approve --latest
+```
+
+### `openclaw acp ask` is not found
+
+That is expected. `openclaw acp` is a stdio ACP bridge server. It does not provide a built-in one-shot `ask` subcommand.
+
+Use a compatible ACP client or a small wrapper process that speaks ACP over stdio.
+
+### Hook shows as disabled
+
+After installation, enable it explicitly:
+
+```bash
+openclaw hooks enable kiro-command
+```
+
+### OpenClaw answers in addition to Kiro
+
+Your hook is likely not returning `{ suppress: true }` for the matched message.
+
+Also check that the hook only exists in **one** location. If the same hook name appears in both `~/.openclaw/hooks/` (managed) and `~/.openclaw/workspace/hooks/` (workspace), the workspace copy is ignored and the managed version runs. Having stale code in either location can cause unexpected behavior. Remove the duplicate to avoid confusion.
 
 ### Kiro returns but Telegram sees an error
 
@@ -154,12 +190,16 @@ Check Telegram bot token loading and the `sendMessage` API response body.
 ├── kiro-telegram-acp.skill
 ├── skill-src/
 │   └── kiro-telegram-acp/
+│       ├── SKILL.md
+│       └── references/
 ├── examples/
 │   ├── hook-template.ts
+│   ├── kiro-acp-ask.js
 │   └── kiro-agent-template.json
 └── docs/
     ├── architecture.md
-    └── deployment.md
+    ├── deployment.md
+    └── wrapper-contract.md
 ```
 
 ## License

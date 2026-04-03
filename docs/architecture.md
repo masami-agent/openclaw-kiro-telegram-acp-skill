@@ -4,6 +4,12 @@
 
 Expose a downstream Kiro agent to Telegram users through OpenClaw without making the main assistant answer `/kiro` messages.
 
+## Compatibility
+
+This architecture is documented for OpenClaw `2026.4.2`, where `openclaw acp` is used as a **stdio JSON-RPC bridge**.
+
+It is not a one-shot request CLI. A hook needs an ACP client or wrapper layer in front of it.
+
 ## End-to-End Flow
 
 ```text
@@ -11,8 +17,8 @@ Telegram user
   -> OpenClaw inbound message event
   -> custom hook checks `/kiro` prefix
   -> hook strips prefix and validates source
-  -> hook POSTs prompt to ACP Bridge
-  -> ACP Bridge forwards to Kiro agent
+  -> hook calls a local ACP client or wrapper
+  -> wrapper talks to `openclaw acp` over stdio
   -> Kiro agent generates response
   -> hook sends response back to Telegram
   -> hook suppresses the normal OpenClaw reply
@@ -31,10 +37,17 @@ Telegram user
 - owns trigger filtering and suppression
 - should not contain heavy agent logic
 
-### ACP Bridge
+### `openclaw acp`
 
-- exposes a local HTTP interface for downstream agent calls
-- decouples OpenClaw from direct CLI lifecycle management
+- bridges an ACP client to the configured downstream agent
+- communicates over stdin/stdout rather than a local HTTP port
+- depends on device pairing and sufficient scopes
+
+### ACP client or wrapper
+
+- translates the hook's one-shot request into ACP protocol messages
+- manages stdio lifecycle for `openclaw acp`
+- returns final text back to the hook
 
 ### Kiro agent
 
@@ -44,13 +57,15 @@ Telegram user
 ## Security Boundaries
 
 - restrict to direct chats unless group routing is intentional
-- prefer an allowlist for trusted users if the endpoint is sensitive
+- prefer an allowlist for trusted users if the relay is sensitive
 - keep bot tokens and personal paths out of public examples
-- bind ACP Bridge to localhost unless remote access is intentionally required
+- do not assume ACP is reachable unless the device has been paired and approved
 
 ## Failure Modes
 
-- bridge unavailable -> return a short Telegram error
+- ACP client or wrapper unavailable -> return a short Telegram error
+- `openclaw acp` used like a one-shot CLI -> document the limitation clearly
+- pairing or scope failure -> document approval steps and return a readable error
 - Telegram send failure -> log locally
 - empty command -> return usage text
 - duplicate replies -> verify the hook returns `{ suppress: true }`
