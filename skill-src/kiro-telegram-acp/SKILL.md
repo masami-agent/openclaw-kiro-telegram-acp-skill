@@ -23,6 +23,8 @@ Use this chain:
 6. Hook sends the returned text back to Telegram
 7. Hook returns `{ suppress: true }` so the main OpenClaw assistant stays silent for that message
 
+**Important:** In OpenClaw 2026.4.2, `message:received` is a void hook — its return value is discarded. `{ suppress: true }` does **not** work. To prevent the main agent from replying, use a `message:sending` hook that returns `{ cancel: true }`. As a belt-and-suspenders measure, also instruct the main agent in `SOUL.md` to ignore `/kiro` messages.
+
 This skill is documented for OpenClaw `2026.4.2`, where `openclaw acp` is a stdio bridge rather than an HTTP server.
 
 It is also not a one-shot `ask` CLI, so you should document or provide the ACP client or wrapper layer explicitly.
@@ -63,9 +65,9 @@ Put these in the Kiro side, not the OpenClaw hook:
 
 For a public skill, keep Kiro resources configurable and avoid hard-coding personal paths when documenting the pattern.
 
-### 4. Prefer fire-and-forget hook behavior
+### 4. Prefer async fire-and-forget hook behavior
 
-After dispatching the background handler, return `{ suppress: true }` immediately. This avoids duplicate replies and keeps OpenClaw responsive.
+After dispatching the background handler, return immediately. Use `message:sending` with `{ cancel: true }` to prevent duplicate replies. Never use synchronous blocking calls (`execSync`) inside hook handlers — this freezes the entire gateway.
 
 ### 5. Handle failures explicitly
 
@@ -107,20 +109,23 @@ Decide all fixed values up front:
 
 Create a hook with metadata similar to:
 
-- event: `message:received`
+- events: `message:received` and `message:sending`
 - always: `true`
-- purpose: intercept `/kiro` messages before the main assistant responds
+- purpose: intercept `/kiro` messages and cancel the main assistant reply
 
 The handler should:
 
-1. reject non-message events
-2. reject non-Telegram traffic
-3. reject non-direct sessions if required
-4. reject content that does not start with `/kiro`
-5. strip the prefix and trim whitespace
-6. call the local ACP client or wrapper
-7. send the result to Telegram
-8. return `{ suppress: true }`
+1. **On `message:sending`**: if the session has a pending `/kiro` command, return `{ cancel: true }` to block the main agent reply
+2. **On `message:received`**: reject non-message, non-Telegram, non-direct events
+3. reject content that does not start with `/kiro`
+4. strip the prefix and trim whitespace
+5. mark the session as pending (for `message:sending` cancellation)
+6. call the local ACP client or wrapper asynchronously (never use `execSync`)
+7. send the result to Telegram with a `🤖 Kiro` prefix
+
+**Critical:** Do not use `execSync` or any synchronous blocking call inside a hook handler. This will freeze the entire gateway event loop.
+
+**Critical:** `message:received` is a void hook in OpenClaw 2026.4.2. Its return value is discarded. Use `message:sending` with `{ cancel: true }` to suppress the main agent reply.
 
 ### Step 3: Configure the Kiro agent
 

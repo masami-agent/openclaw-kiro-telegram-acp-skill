@@ -48,16 +48,25 @@ Suggested `HOOK.md` pattern:
 ```md
 ---
 name: kiro-command
-description: Relay /kiro commands from Telegram to Kiro via openclaw acp
+description: Relay /kiro commands from Telegram to Kiro agent
 metadata:
   openclaw:
     events:
       - message:received
+      - message:sending
     always: true
 ---
 ```
 
 Use the example `handler.ts` from this repo as the starting point.
+
+**Important:** The hook must listen to both `message:received` (to detect `/kiro`) and `message:sending` (to cancel the main agent reply with `{ cancel: true }`). In OpenClaw 2026.4.2, `message:received` is a void hook — its return value is discarded, so `{ suppress: true }` does not work.
+
+As an additional safety measure, add this line to your `SOUL.md`:
+
+```
+If a message starts with `/kiro`, ignore it completely. Do not reply. That command is handled by a separate Kiro agent via a hook.
+```
 
 ## Step 2: Configure environment values
 
@@ -171,7 +180,12 @@ Check:
 
 ### OpenClaw replies in addition to Kiro
 
-Make sure the hook returns `{ suppress: true }` for matched `/kiro` messages.
+`message:received` is a void hook in OpenClaw 2026.4.2 — `{ suppress: true }` is silently ignored.
+
+To prevent double replies:
+
+1. Add `message:sending` to your hook events and return `{ cancel: true }` when a `/kiro` command is pending
+2. Add an instruction in `SOUL.md` telling the main agent to ignore `/kiro` messages
 
 Also verify there is only one active copy of the hook.
 
