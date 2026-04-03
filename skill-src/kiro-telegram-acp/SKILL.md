@@ -21,7 +21,7 @@ Use this chain:
 4. Hook strips `/kiro` and forwards the remaining prompt through a local ACP client or wrapper
 5. The client or wrapper talks to `openclaw acp`, which then calls the target Kiro agent
 6. Hook sends the returned text back to Telegram
-7. Hook returns `{ suppress: true }` so the main OpenClaw assistant stays silent for that message
+7. Hook cancels the main OpenClaw reply via `message:sending` hook with `{ cancel: true }`
 
 **Important:** In OpenClaw 2026.4.2, `message:received` is a void hook — its return value is discarded. `{ suppress: true }` does **not** work. To prevent the main agent from replying, use a `message:sending` hook that returns `{ cancel: true }`. As a belt-and-suspenders measure, also instruct the main agent in `SOUL.md` to ignore `/kiro` messages.
 

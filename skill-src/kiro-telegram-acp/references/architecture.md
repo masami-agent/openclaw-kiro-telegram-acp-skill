@@ -12,7 +12,7 @@ Telegram
   -> `openclaw acp` stdio bridge
   -> downstream Kiro agent
   -> Telegram reply
-  -> `{ suppress: true }`
+  -> `message:sending` hook returns `{ cancel: true }` to block main agent
 ```
 
 ## Design rules

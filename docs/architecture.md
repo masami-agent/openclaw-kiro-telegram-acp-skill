@@ -21,7 +21,7 @@ Telegram user
   -> wrapper talks to `openclaw acp` over stdio
   -> Kiro agent generates response
   -> hook sends response back to Telegram
-  -> hook suppresses the normal OpenClaw reply
+  -> hook cancels the normal OpenClaw reply via `message:sending` + `{ cancel: true }`
 ```
 
 ## Responsibilities by Layer
@@ -68,4 +68,4 @@ Telegram user
 - pairing or scope failure -> document approval steps and return a readable error
 - Telegram send failure -> log locally
 - empty command -> return usage text
-- duplicate replies -> verify the hook returns `{ suppress: true }`
+- duplicate replies -> use `message:sending` hook with `{ cancel: true }` (note: `message:received` is a void hook — `{ suppress: true }` is ignored)
