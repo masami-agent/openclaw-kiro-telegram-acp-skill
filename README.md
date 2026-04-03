@@ -24,6 +24,7 @@ Use it when you want:
 - `examples/hook-template.ts` — reusable hook template
 - `examples/kiro-agent-template.json` — sample Kiro agent config
 - `docs/architecture.md` — short architecture walkthrough
+- `docs/deployment.md` — deployment steps and production hardening notes
 
 ## How it works
 
@@ -57,9 +58,40 @@ You need:
 
 Option 1: copy the source skill folder into your skills directory.
 
+```bash
+mkdir -p ~/.openclaw/workspace/skills
+cp -R skill-src/kiro-telegram-acp ~/.openclaw/workspace/skills/
+```
+
 Option 2: install from the packaged `.skill` file using your preferred OpenClaw skill workflow.
 
 The source skill is under `skill-src/kiro-telegram-acp/`.
+
+## ClawHub publishing and install notes
+
+If you want to publish your own variant to ClawHub:
+
+```bash
+clawhub login
+clawhub whoami
+clawhub publish ./skill-src/kiro-telegram-acp \
+  --slug kiro-telegram-acp \
+  --name "Kiro Telegram ACP" \
+  --version 0.1.0 \
+  --changelog "Initial public release"
+```
+
+If a published version exists, users can install it with:
+
+```bash
+clawhub install kiro-telegram-acp --workdir ~/.openclaw/workspace
+```
+
+Or update later with:
+
+```bash
+clawhub update kiro-telegram-acp --workdir ~/.openclaw/workspace
+```
 
 ## Hook setup
 
@@ -124,7 +156,8 @@ Check Telegram bot token loading and the `sendMessage` API response body.
 │   ├── hook-template.ts
 │   └── kiro-agent-template.json
 └── docs/
-    └── architecture.md
+    ├── architecture.md
+    └── deployment.md
 ```
 
 ## License
