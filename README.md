@@ -42,7 +42,9 @@ That means a Telegram hook cannot treat `openclaw acp` like `curl` or `openclaw 
 4. Hook calls a local ACP-compatible wrapper command
 5. The wrapper talks to `openclaw acp` over stdio and forwards the request to the configured Kiro agent
 6. Hook sends the returned text back to Telegram
-7. Hook returns `{ suppress: true }` so OpenClaw does not answer twice
+7. Hook cancels the main OpenClaw reply via `message:sending` hook with `{ cancel: true }`
+
+> **Note:** In OpenClaw 2026.4.2, `message:received` is a void hook — `{ suppress: true }` is silently ignored. Use `message:sending` with `{ cancel: true }` instead.
 
 ## Recommended design choices
 
@@ -113,10 +115,11 @@ Create a hook similar to `examples/hook-template.ts` and adjust:
 
 Important behavior:
 
-- trigger only on Telegram direct messages
-- process only messages starting with `/kiro`
-- invoke your local ACP wrapper command
-- return `{ suppress: true }`
+- trigger on both `message:received` and `message:sending`
+- process only Telegram direct messages starting with `/kiro`
+- use `message:sending` with `{ cancel: true }` to block the main agent reply
+- never use synchronous blocking calls (`execSync`) inside the handler
+- add a `/kiro` ignore instruction to `SOUL.md` as a safety net
 
 ## Kiro agent setup
 
@@ -175,9 +178,14 @@ openclaw hooks enable kiro-command
 
 ### OpenClaw answers in addition to Kiro
 
-Your hook is likely not returning `{ suppress: true }` for the matched message.
+`message:received` is a void hook in OpenClaw 2026.4.2 — `{ suppress: true }` is silently ignored.
 
-Also check that the hook only exists in **one** location. If the same hook name appears in both `~/.openclaw/hooks/` (managed) and `~/.openclaw/workspace/hooks/` (workspace), the workspace copy is ignored and the managed version runs. Having stale code in either location can cause unexpected behavior. Remove the duplicate to avoid confusion.
+To prevent double replies:
+
+1. Add `message:sending` to your hook events and return `{ cancel: true }` when a `/kiro` command is pending
+2. Add an instruction in `SOUL.md` telling the main agent to ignore `/kiro` messages
+
+Also check that the hook only exists in **one** location.
 
 ### Kiro returns but Telegram sees an error
 
