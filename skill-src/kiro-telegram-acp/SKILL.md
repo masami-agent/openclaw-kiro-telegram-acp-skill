@@ -1,13 +1,32 @@
 ---
 name: kiro-telegram-acp
-description: Build and document an OpenClaw integration that relays Telegram commands to a Kiro agent through an ACP client stack, with `openclaw acp` providing the stdio bridge. Use when creating or explaining a setup where Telegram messages pass through an OpenClaw hook into a downstream Kiro agent, including hook design, message suppression, agent prompts, knowledge-base files, safety boundaries, and public packaging as an OpenClaw skill.
+description: "Relay Telegram /kiro commands to a downstream Kiro agent via OpenClaw hook and ACP. Use when setting up a Telegram-to-Kiro relay, configuring hook-based message routing, or packaging an ACP integration as an OpenClaw skill."
+homepage: https://github.com/masami-agent/openclaw-kiro-telegram-acp-skill
+metadata:
+  {
+    "openclaw":
+      {
+        "emoji": "🤖",
+        "requires": { "bins": ["openclaw"] },
+        "install":
+          [
+            {
+              "id": "npm",
+              "kind": "npm",
+              "package": "openclaw",
+              "bins": ["openclaw"],
+              "label": "Install OpenClaw (npm)",
+            },
+          ],
+      },
+  }
 ---
 
 # Kiro Telegram ACP
 
 ## Overview
 
-Implement a lightweight relay pattern: capture `/kiro` commands in an OpenClaw hook, suppress the main assistant reply, forward the stripped prompt through a local ACP client or wrapper, then send the downstream agent response back to Telegram.
+Implement a lightweight relay pattern: capture `/kiro` commands in an OpenClaw hook, cancel the main assistant reply via `message:sending`, forward the stripped prompt to a Kiro agent, then send the response back to Telegram.
 
 Keep the architecture simple. The hook should route, not think. Put durable behavior in the downstream Kiro agent prompt and knowledge files.
 
