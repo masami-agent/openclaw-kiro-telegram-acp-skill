@@ -132,6 +132,8 @@ Before pushing publicly, scrub:
 
 Your hook is likely not returning `{ suppress: true }` for the matched message.
 
+Also check that the hook only exists in **one** location. If the same hook name appears in both `~/.openclaw/hooks/` (managed) and `~/.openclaw/workspace/hooks/` (workspace), the workspace copy is ignored and the managed version runs. Having stale code in either location can cause unexpected behavior. Remove the duplicate to avoid confusion.
+
 ### `/kiro` does nothing
 
 Check:

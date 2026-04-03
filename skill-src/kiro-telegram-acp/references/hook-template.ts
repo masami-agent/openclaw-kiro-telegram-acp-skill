@@ -40,9 +40,9 @@ async function queryKiro(prompt: string): Promise<string> {
 async function handleKiroQuery(chatId: string, query: string) {
   try {
     const reply = await queryKiro(query);
-    await sendTelegram(chatId, reply);
+    await sendTelegram(chatId, `🤖 Kiro\n\n${reply}`);
   } catch (err: any) {
-    await sendTelegram(chatId, `⚠️ Kiro error: ${err?.message || String(err)}`);
+    await sendTelegram(chatId, `🤖 Kiro\n\n⚠️ Error: ${err?.message || String(err)}`);
   }
 }
 

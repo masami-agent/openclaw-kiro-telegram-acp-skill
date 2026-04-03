@@ -34,6 +34,8 @@ Create a hook folder and place:
 - `HOOK.md`
 - `handler.ts`
 
+**Important:** Only place the hook in one location. If the same hook name exists in both `~/.openclaw/hooks/` (managed) and `~/.openclaw/workspace/hooks/` (workspace), the workspace copy is ignored. Having duplicates can cause stale code to run unexpectedly.
+
 Suggested `HOOK.md` pattern:
 
 ```md
