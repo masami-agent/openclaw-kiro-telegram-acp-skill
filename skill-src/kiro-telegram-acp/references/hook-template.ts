@@ -34,7 +34,7 @@ async function queryKiro(prompt: string): Promise<string> {
   });
   const data = await res.json();
   if (!res.ok || data.error) throw new Error(data.error || `HTTP ${res.status}`);
-  return data.text || data.response || "(Kiro 沒有回覆)";
+  return data.text || data.response || "(no response from Kiro)";
 }
 
 async function handleKiroQuery(chatId: string, query: string) {
@@ -42,7 +42,7 @@ async function handleKiroQuery(chatId: string, query: string) {
     const reply = await queryKiro(query);
     await sendTelegram(chatId, reply);
   } catch (err: any) {
-    await sendTelegram(chatId, `⚠️ Kiro 錯誤: ${err?.message || String(err)}`);
+    await sendTelegram(chatId, `⚠️ Kiro error: ${err?.message || String(err)}`);
   }
 }
 
@@ -60,7 +60,7 @@ const handler = (event: any) => {
 
   const query = content.replace(/^\/kiro\s*/, "").trim();
   if (!query) {
-    sendTelegram(chatId, "用法: /kiro <你的問題>");
+    sendTelegram(chatId, "Usage: /kiro <your question>");
     return { suppress: true };
   }
 

@@ -1,11 +1,9 @@
 {
   "name": "kiro_default",
   "description": "Default Kiro agent for Telegram relay usage",
-  "prompt": "Always respond in Traditional Chinese (zh-TW). 所有回覆都必須使用繁體中文。",
+  "prompt": "You are a helpful assistant. Always respond in English.",
   "resources": [
-    "file:///ABSOLUTE/PATH/TO/kb-preferences.md",
-    "file:///ABSOLUTE/PATH/TO/kb-environment.md",
-    "file:///ABSOLUTE/PATH/TO/kb-openclaw.md"
+    "file:///ABSOLUTE/PATH/TO/your-kb-file.md"
   ],
   "useLegacyMcpJson": true
 }
