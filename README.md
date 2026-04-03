@@ -2,6 +2,18 @@
 
 Public starter kit for routing Telegram `/kiro` commands through OpenClaw to a downstream Kiro agent through an ACP client stack, with OpenClaw providing the stdio ACP bridge.
 
+## Features
+
+- 🤖 **Telegram `/kiro` command** — talk to a Kiro agent directly from Telegram
+- 🔀 **Dual-hook suppression** — `message:received` captures the command, `message:sending` cancels the main agent reply with `{ cancel: true }`
+- 🔒 **Chat ID allowlist** — restrict access to trusted Telegram users
+- ⚡ **Async non-blocking** — uses `execFile` to avoid freezing the gateway event loop
+- 🆔 **Dynamic session IDs** — each query gets a fresh session to avoid stale state
+- 🛡️ **Belt-and-suspenders** — SOUL.md instruction as a safety net against double replies
+- 📦 **Packaged as OpenClaw skill** — installable via `skill-src/` or ClawHub
+- 📝 **Full documentation** — architecture, deployment guide, troubleshooting, and wrapper contract
+- 🔧 **Configurable** — agent name, timeout, chat allowlist, reply prefix all adjustable via env vars
+
 ## What this is
 
 This repo documents and packages a practical architecture:
