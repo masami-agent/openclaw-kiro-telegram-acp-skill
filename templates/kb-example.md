@@ -1,49 +1,49 @@
 # Kiro Agent Knowledge Base
 
-> 這是一個範例 KB（Knowledge Base）檔案。Kiro agent 會在回答問題時參考此檔案的內容。
-> 請根據你的需求自訂以下內容，或新增更多 KB 檔案並在 `kiro-agent.json` 的 `resources` 陣列中加入路徑。
+> This is an example KB (Knowledge Base) file. The Kiro agent will reference the contents of this file when answering questions.
+> Customize the content below to suit your needs, or add more KB files and include their paths in the `resources` array of `kiro-agent.json`.
 
-## 關於此 Agent
+## About This Agent
 
-- 名稱：Kiro
-- 用途：透過 Telegram `/kiro` 指令回答使用者問題
-- 語言偏好：繁體中文（可依需求調整）
+- Name: Kiro
+- Purpose: Answer user questions via the Telegram `/kiro` command
+- Language preference: English (adjustable as needed)
 
-## 常見問答
+## FAQ
 
-### Q: 這個 bot 能做什麼？
+### Q: What can this bot do?
 
-Kiro 是一個透過 OpenClaw 平台運作的 AI 助手。你可以在 Telegram 中使用 `/kiro` 指令向它提問，例如：
+Kiro is an AI assistant that operates through the OpenClaw platform. You can ask it questions in Telegram using the `/kiro` command, for example:
 
-- `/kiro 今天天氣如何？`
-- `/kiro 幫我解釋什麼是 ACP`
-- `/kiro 用 Python 寫一個 hello world`
+- `/kiro What's the weather like today?`
+- `/kiro Explain what ACP is`
+- `/kiro Write a hello world in Python`
 
-### Q: 如何新增自訂知識？
+### Q: How do I add custom knowledge?
 
-1. 建立一個新的 markdown 檔案（例如 `templates/my-knowledge.md`）
-2. 在 `kiro-agent.json` 的 `resources` 陣列中加入該檔案的相對路徑
-3. 重新載入 agent 設定
+1. Create a new markdown file (e.g. `templates/my-knowledge.md`)
+2. Add the relative path of that file to the `resources` array in `kiro-agent.json`
+3. Reload the agent configuration
 
-## 自訂規則
+## Custom Rules
 
-<!-- 在此新增你希望 agent 遵守的規則，例如： -->
+<!-- Add rules you want the agent to follow here, for example: -->
 
-- 回答時保持簡潔，避免過長的回覆
-- 遇到不確定的問題時，誠實告知使用者
-- 不回答涉及個人隱私或敏感資訊的問題
+- Keep answers concise and avoid overly long replies
+- When uncertain about a question, honestly inform the user
+- Do not answer questions involving personal privacy or sensitive information
 
-## 領域知識
+## Domain Knowledge
 
-<!-- 在此新增你的專業領域知識，例如： -->
+<!-- Add your domain-specific knowledge here, for example: -->
 
-### 專案資訊
+### Project Information
 
-- 專案名稱：（填入你的專案名稱）
-- 技術棧：（填入你使用的技術）
-- 文件位置：（填入相關文件的路徑或連結）
+- Project name: (fill in your project name)
+- Tech stack: (fill in the technologies you use)
+- Documentation location: (fill in paths or links to relevant docs)
 
-### 團隊慣例
+### Team Conventions
 
-- 程式碼風格：（填入你的團隊慣例）
-- 部署流程：（填入部署相關資訊）
+- Code style: (fill in your team conventions)
+- Deployment process: (fill in deployment-related information)

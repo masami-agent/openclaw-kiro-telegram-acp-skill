@@ -2,7 +2,7 @@ import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import type { OpenClawEvent } from "../../types/index.js";
 
 // ============================================================
-// Mock 設定 — 必須在 import handler 之前完成
+// Mock setup — must be completed before importing handler
 // ============================================================
 
 // Mock child_process.execFile
@@ -11,7 +11,7 @@ vi.mock("node:child_process", () => ({
   execFile: (...args: unknown[]) => mockExecFile(...args),
 }));
 
-// Mock fs.readFileSync（getBotToken 使用）
+// Mock fs.readFileSync (used by getBotToken)
 vi.mock("node:fs", () => ({
   readFileSync: () =>
     JSON.stringify({
@@ -30,12 +30,12 @@ vi.mock("../../lib/config.js", () => ({
   }),
 }));
 
-// Mock global fetch（Telegram sendMessage）
+// Mock global fetch (Telegram sendMessage)
 const mockFetch = vi.fn();
 vi.stubGlobal("fetch", mockFetch);
 
 // ============================================================
-// Import handler 與內部函式
+// Import handler and internal functions
 // ============================================================
 
 import handler, {
@@ -45,10 +45,10 @@ import handler, {
 } from "../handler.js";
 
 // ============================================================
-// 測試輔助
+// Test helpers
 // ============================================================
 
-/** 建立 mock OpenClawEvent */
+/** Create a mock OpenClawEvent */
 function createEvent(overrides: Partial<OpenClawEvent> & {
   context?: Partial<OpenClawEvent["context"]>;
 } = {}): OpenClawEvent {
@@ -67,9 +67,9 @@ function createEvent(overrides: Partial<OpenClawEvent> & {
   };
 }
 
-/** 設定 mockExecFile 回傳成功結果 */
+/** Set mockExecFile to return a success result */
 function mockExecFileSuccess(text: string, stderr = "") {
-  // 模擬 `openclaw agent --json` 的 JSON 回覆格式
+  // Simulate `openclaw agent --json` JSON reply format
   const stdout = JSON.stringify({ result: { payloads: [{ text }] } });
   mockExecFile.mockImplementation(
     (_cmd: string, _args: string[], _opts: unknown, cb: Function) => {
@@ -78,7 +78,7 @@ function mockExecFileSuccess(text: string, stderr = "") {
   );
 }
 
-/** 設定 mockExecFile 回傳錯誤結果 */
+/** Set mockExecFile to return an error result */
 function mockExecFileError(exitCode: number, stderr: string, stdout = "") {
   mockExecFile.mockImplementation(
     (_cmd: string, _args: string[], _opts: unknown, cb: Function) => {
@@ -90,14 +90,14 @@ function mockExecFileError(exitCode: number, stderr: string, stdout = "") {
   );
 }
 
-/** 設定 fetch mock 回傳成功 */
+/** Set fetch mock to return success */
 function mockFetchSuccess() {
   mockFetch.mockResolvedValue({
     json: () => Promise.resolve({ ok: true }),
   });
 }
 
-/** 等待所有 microtask 完成 */
+/** Wait for all microtasks to complete */
 function flushPromises(): Promise<void> {
   return new Promise((resolve) => setTimeout(resolve, 50));
 }
@@ -125,9 +125,9 @@ describe("Hook Handler", () => {
     vi.restoreAllMocks();
   });
 
-  // ── /kiro 訊息觸發 ACP Wrapper 呼叫 ──────────────────────
-  describe("/kiro 訊息觸發 ACP Wrapper 呼叫", () => {
-    it("應使用 execFile 呼叫 ACP Wrapper 並傳入正確參數", async () => {
+  // ── /kiro message triggers ACP Wrapper call ───────────────
+  describe("/kiro message triggers ACP Wrapper call", () => {
+    it("should use execFile to call ACP Wrapper with correct arguments", async () => {
       const event = createEvent({
         context: { content: "/kiro what is TypeScript?" },
       });
@@ -146,7 +146,7 @@ describe("Hook Handler", () => {
       expect(args).toContain("--json");
     });
 
-    it("應將 ACP Wrapper 的 stdout 回覆傳送至 Telegram", async () => {
+    it("should send ACP Wrapper stdout reply to Telegram", async () => {
       mockExecFileSuccess("This is the Kiro reply");
 
       const event = createEvent();
@@ -164,7 +164,7 @@ describe("Hook Handler", () => {
       expect(body.text).toContain("This is the Kiro reply");
     });
 
-    it("空 prompt（僅 /kiro）應回傳 usage 訊息", async () => {
+    it("empty prompt (just /kiro) should return a usage message", async () => {
       const event = createEvent({
         context: { content: "/kiro" },
       });
@@ -172,16 +172,16 @@ describe("Hook Handler", () => {
       handler(event);
       await flushPromises();
 
-      // 不應呼叫 ACP Wrapper
+      // Should not call ACP Wrapper
       expect(mockExecFile).not.toHaveBeenCalled();
 
-      // 應傳送 usage 訊息
+      // Should send usage message
       expect(mockFetch).toHaveBeenCalledTimes(1);
       const body = JSON.parse(mockFetch.mock.calls[0]![1].body);
       expect(body.text).toContain("Usage:");
     });
 
-    it("ACP Wrapper 錯誤時應透過 Error Formatter 處理並傳送友善訊息", async () => {
+    it("ACP Wrapper error should be processed through Error Formatter and send a friendly message", async () => {
       mockExecFileError(3, "timeout after 120000ms");
 
       const event = createEvent();
@@ -191,13 +191,13 @@ describe("Hook Handler", () => {
       expect(mockFetch).toHaveBeenCalledTimes(1);
       const body = JSON.parse(mockFetch.mock.calls[0]![1].body);
       expect(body.text).toContain("🤖 Kiro");
-      expect(body.text).toContain("逾時");
+      expect(body.text).toContain("timed out");
     });
   });
 
-  // ── 非 /kiro 訊息不觸發處理 ────────────────────────────────
-  describe("非 /kiro 訊息不觸發處理", () => {
-    it("一般訊息不應觸發 ACP Wrapper", () => {
+  // ── Non-/kiro messages should not trigger processing ──────
+  describe("Non-/kiro messages should not trigger processing", () => {
+    it("regular messages should not trigger ACP Wrapper", () => {
       const event = createEvent({
         context: { content: "hello world" },
       });
@@ -209,7 +209,7 @@ describe("Hook Handler", () => {
       expect(result).toBeUndefined();
     });
 
-    it("非 telegram channel 不應觸發處理", () => {
+    it("non-telegram channel should not trigger processing", () => {
       const event = createEvent({
         context: { channelId: "discord", content: "/kiro hello" },
       });
@@ -220,7 +220,7 @@ describe("Hook Handler", () => {
       expect(result).toBeUndefined();
     });
 
-    it("非 message:received 事件不應觸發處理", () => {
+    it("non-message:received events should not trigger processing", () => {
       const event = createEvent({ type: "connection", action: "opened" });
 
       const result = handler(event);
@@ -229,7 +229,7 @@ describe("Hook Handler", () => {
       expect(result).toBeUndefined();
     });
 
-    it("非 agent:main:telegram:direct: session key 不應觸發處理", () => {
+    it("non agent:main:telegram:direct: session key should not trigger processing", () => {
       const event = createEvent({
         sessionKey: "agent:secondary:telegram:group:999",
         context: { content: "/kiro hello" },
@@ -242,10 +242,10 @@ describe("Hook Handler", () => {
     });
   });
 
-  // ── ALLOWED_CHAT_IDS 過濾邏輯 ──────────────────────────────
-  describe("ALLOWED_CHAT_IDS 過濾邏輯", () => {
-    it("allowedChatIds 為空時應允許所有 chatId", async () => {
-      // 預設 config 的 allowedChatIds 為 []
+  // ── ALLOWED_CHAT_IDS filtering logic ──────────────────────
+  describe("ALLOWED_CHAT_IDS filtering logic", () => {
+    it("empty allowedChatIds should allow all chatIds", async () => {
+      // Default config has allowedChatIds as []
       const event = createEvent({
         context: { conversationId: "telegram:99999" },
       });
@@ -256,8 +256,8 @@ describe("Hook Handler", () => {
       expect(mockExecFile).toHaveBeenCalledTimes(1);
     });
 
-    it("chatId 不在 allowedChatIds 中時不應觸發處理", async () => {
-      // 動態修改 config（透過 import 的 config 物件）
+    it("chatId not in allowedChatIds should not trigger processing", async () => {
+      // Dynamically modify config (via the imported config object)
       const { config: handlerConfig } = await import("../handler.js");
       const originalIds = [...handlerConfig.allowedChatIds];
       handlerConfig.allowedChatIds = ["allowed-1", "allowed-2"];
@@ -276,7 +276,7 @@ describe("Hook Handler", () => {
       }
     });
 
-    it("chatId 在 allowedChatIds 中時應正常處理", async () => {
+    it("chatId in allowedChatIds should be processed normally", async () => {
       const { config: handlerConfig } = await import("../handler.js");
       const originalIds = [...handlerConfig.allowedChatIds];
       handlerConfig.allowedChatIds = ["12345", "67890"];
@@ -296,14 +296,14 @@ describe("Hook Handler", () => {
     });
   });
 
-  // ── message:sending 取消邏輯 ────────────────────────────────
-  describe("message:sending 取消邏輯", () => {
-    it("有 pending /kiro session 時應回傳 { cancel: true }", () => {
-      // 先觸發 message:received 標記 session
+  // ── message:sending cancel logic ──────────────────────────
+  describe("message:sending cancel logic", () => {
+    it("should return { cancel: true } when there is a pending /kiro session", () => {
+      // First trigger message:received to mark the session
       const receivedEvent = createEvent();
       handler(receivedEvent);
 
-      // 然後觸發 message:sending
+      // Then trigger message:sending
       const sendingEvent = createEvent({
         action: "sending",
       });
@@ -312,7 +312,7 @@ describe("Hook Handler", () => {
       expect(result).toEqual({ cancel: true });
     });
 
-    it("無 pending session 時不應取消", () => {
+    it("should not cancel when there is no pending session", () => {
       const sendingEvent = createEvent({
         action: "sending",
         sessionKey: "agent:main:telegram:direct:no-pending",
@@ -322,33 +322,33 @@ describe("Hook Handler", () => {
       expect(result).toBeUndefined();
     });
 
-    it("取消後再次 sending 不應重複取消（一次性消費）", () => {
-      // 標記 session
+    it("should not cancel again after consumption (one-time use)", () => {
+      // Mark session
       const receivedEvent = createEvent();
       handler(receivedEvent);
 
       const sendingEvent = createEvent({ action: "sending" });
 
-      // 第一次取消
+      // First cancel
       const result1 = handler(sendingEvent);
       expect(result1).toEqual({ cancel: true });
 
-      // 第二次不應取消
+      // Second should not cancel
       const result2 = handler(sendingEvent);
       expect(result2).toBeUndefined();
     });
   });
 
-  // ── extractChatId ──────────────────────────────────────────
+  // ── extractChatId ─────────────────────────────────────────
   describe("extractChatId()", () => {
-    it("應移除 telegram: 前綴", () => {
+    it("should remove the telegram: prefix", () => {
       const event = createEvent({
         context: { conversationId: "telegram:12345" },
       });
       expect(extractChatId(event)).toBe("12345");
     });
 
-    it("無前綴時應回傳原始值", () => {
+    it("should return the raw value when there is no prefix", () => {
       const event = createEvent({
         context: { conversationId: "67890" },
       });
@@ -356,34 +356,34 @@ describe("Hook Handler", () => {
     });
   });
 
-  // ── Provider 錯誤頻率追蹤 ──────────────────────────────────
-  describe("Provider 錯誤頻率追蹤", () => {
-    it("未達閾值時應回傳 false", () => {
+  // ── Provider error frequency tracking ─────────────────────
+  describe("Provider error frequency tracking", () => {
+    it("should return false when threshold is not reached", () => {
       expect(trackProviderError("user-1")).toBe(false);
       expect(trackProviderError("user-1")).toBe(false);
     });
 
-    it("達到 3 次閾值時應回傳 true", () => {
+    it("should return true when the threshold of 3 is reached", () => {
       trackProviderError("user-2");
       trackProviderError("user-2");
       expect(trackProviderError("user-2")).toBe(true);
     });
 
-    it("不同 chatId 應獨立追蹤", () => {
+    it("different chatIds should be tracked independently", () => {
       trackProviderError("user-a");
       trackProviderError("user-a");
       trackProviderError("user-b");
 
-      expect(trackProviderError("user-a")).toBe(true); // 第 3 次
-      expect(trackProviderError("user-b")).toBe(false); // 僅第 2 次
+      expect(trackProviderError("user-a")).toBe(true); // 3rd time
+      expect(trackProviderError("user-b")).toBe(false); // only 2nd time
     });
 
-    it("clearProviderErrors 應清除指定 chatId 的記錄", () => {
+    it("clearProviderErrors should clear records for the specified chatId", () => {
       trackProviderError("user-c");
       trackProviderError("user-c");
       clearProviderErrors("user-c");
 
-      expect(trackProviderError("user-c")).toBe(false); // 重新計數
+      expect(trackProviderError("user-c")).toBe(false); // recount
     });
   });
 });

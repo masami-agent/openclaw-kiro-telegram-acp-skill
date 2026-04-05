@@ -1,6 +1,6 @@
 {
   "_comments": {
-    "resources": "在 resources 陣列中加入你自己的 KB 檔案路徑（相對於 OpenClaw workspace 根目錄）。例如：'./templates/my-kb.md' 或 './docs/my-guide.md'。路徑必須使用相對路徑格式（以 ./ 開頭），OpenClaw 會自動解析。部署前請確認檔案存在於指定路徑。"
+    "resources": "Add your own KB file paths to the resources array (relative to the OpenClaw workspace root). For example: './templates/my-kb.md' or './docs/my-guide.md'. Paths must use relative format (starting with ./), and OpenClaw will resolve them automatically. Ensure the files exist at the specified paths before deployment."
   },
   "name": "kiro",
   "description": "Kiro agent for Telegram relay",

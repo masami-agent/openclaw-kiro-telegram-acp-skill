@@ -1,17 +1,17 @@
 /**
  * scripts/build-skill.ts
  *
- * Skill 建置與打包腳本 — 從原始碼產生 `.skill` 檔案。
+ * Skill build and packaging script — generates a `.skill` file from source.
  *
- * 流程：
- *   1. 執行 TypeScript 編譯（npm run build）
- *   2. 複製編譯後的 JS 與資源檔案至 skill-src/kiro-telegram-acp/references/
- *   3. 打包 skill-src/kiro-telegram-acp/ 為 .skill（Zip）檔案
- *   4. 輸出產生的 .skill 檔案路徑與大小
+ * Flow:
+ *   1. Run TypeScript compilation (npm run build)
+ *   2. Copy compiled JS and resource files to skill-src/kiro-telegram-acp/references/
+ *   3. Package skill-src/kiro-telegram-acp/ into a .skill (Zip) file
+ *   4. Output the generated .skill file path and size
  *
- * 用法：npm run build-skill
+ * Usage: npm run build-skill
  *
- * 需求: 10.1, 10.2, 10.3
+ * Requirements: 10.1, 10.2, 10.3
  */
 
 import { execFile } from "node:child_process";
@@ -31,7 +31,7 @@ import { createDeflateRaw } from "node:zlib";
 
 const execFileAsync = promisify(execFile);
 
-// ── 設定 ──────────────────────────────────────────────────────────
+// ── Configuration ─────────────────────────────────────────────
 
 const PROJECT_ROOT = resolve(import.meta.dirname, "..", "..");
 const SKILL_SRC_DIR = join(PROJECT_ROOT, "skill-src", "kiro-telegram-acp");
@@ -40,18 +40,18 @@ const DIST_DIR = join(PROJECT_ROOT, "dist");
 const OUTPUT_FILE = join(PROJECT_ROOT, "kiro-telegram-acp.skill");
 
 /**
- * 需要從 dist/ 複製到 references/ 的編譯後 JS 檔案。
- * 這些是 skill 使用者可能需要參考的核心模組。
+ * Compiled JS files to copy from dist/ to references/.
+ * These are core modules that skill users may need to reference.
  */
 const COMPILED_FILES_TO_COPY: Array<{ src: string; destName: string }> = [
   {
     src: "dist/src/hook/handler.js",
-    destName: "hook-template.ts", // 保留原始 .ts 副檔名作為範本參考
+    destName: "hook-template.ts", // Keep original .ts extension as a template reference
   },
 ];
 
 /**
- * 額外需要複製的靜態資源檔案（從 examples/ 或 templates/）。
+ * Additional static resource files to copy (from examples/ or templates/).
  */
 const RESOURCE_FILES_TO_COPY: Array<{ src: string; destName: string }> = [
   {
@@ -60,16 +60,16 @@ const RESOURCE_FILES_TO_COPY: Array<{ src: string; destName: string }> = [
   },
 ];
 
-// ── Zip 工具（使用 Node.js 內建模組，無需額外依賴）──────────────
+// ── Zip utility (using Node.js built-in modules, no extra dependencies) ──
 
 /**
- * 最小化的 Zip 檔案產生器。
- * 使用 DEFLATE 壓縮，相容標準 Zip 格式。
+ * Minimal Zip file generator.
+ * Uses DEFLATE compression, compatible with standard Zip format.
  */
 
 interface ZipEntry {
-  name: string; // 檔案在 zip 中的路徑
-  data: Buffer; // 原始檔案內容
+  name: string; // File path within the zip
+  data: Buffer; // Raw file content
 }
 
 function crc32(buf: Buffer): number {
@@ -178,7 +178,7 @@ async function createZip(entries: ZipEntry[]): Promise<Buffer> {
   return Buffer.concat([...localHeaders, ...centralHeaders, eocd]);
 }
 
-// ── 建置步驟 ──────────────────────────────────────────────────────
+// ── Build steps ───────────────────────────────────────────────
 
 function log(msg: string): void {
   console.log(`  ${msg}`);
@@ -189,10 +189,10 @@ function logStep(step: string): void {
 }
 
 /**
- * 步驟 1：執行 TypeScript 編譯
+ * Step 1: Run TypeScript compilation
  */
 async function compileTypeScript(): Promise<void> {
-  logStep("執行 TypeScript 編譯（npm run build）...");
+  logStep("Running TypeScript compilation (npm run build)...");
   try {
     const { stdout, stderr } = await execFileAsync("npm", ["run", "build"], {
       cwd: PROJECT_ROOT,
@@ -201,43 +201,43 @@ async function compileTypeScript(): Promise<void> {
     if (stderr && !stderr.includes("npm warn")) {
       process.stderr.write(stderr);
     }
-    log("✓ TypeScript 編譯完成");
+    log("✓ TypeScript compilation complete");
   } catch (err: unknown) {
     const msg =
       err instanceof Error ? err.message : String(err);
-    console.error(`✗ TypeScript 編譯失敗：${msg}`);
+    console.error(`✗ TypeScript compilation failed: ${msg}`);
     process.exit(1);
   }
 }
 
 /**
- * 步驟 2：複製編譯後的 JS 與資源檔案至 skill-src/references/
+ * Step 2: Copy compiled JS and resource files to skill-src/references/
  */
 function copyFilesToReferences(): void {
-  logStep("複製檔案至 skill-src/kiro-telegram-acp/references/ ...");
+  logStep("Copying files to skill-src/kiro-telegram-acp/references/ ...");
 
   if (!existsSync(REFERENCES_DIR)) {
     mkdirSync(REFERENCES_DIR, { recursive: true });
   }
 
-  // 複製編譯後的 JS 檔案
+  // Copy compiled JS files
   for (const file of COMPILED_FILES_TO_COPY) {
     const srcPath = join(PROJECT_ROOT, file.src);
     const destPath = join(REFERENCES_DIR, file.destName);
     if (!existsSync(srcPath)) {
-      console.error(`✗ 找不到編譯後的檔案：${file.src}`);
+      console.error(`✗ Compiled file not found: ${file.src}`);
       process.exit(1);
     }
     copyFileSync(srcPath, destPath);
     log(`✓ ${file.src} → references/${file.destName}`);
   }
 
-  // 複製靜態資源檔案
+  // Copy static resource files
   for (const file of RESOURCE_FILES_TO_COPY) {
     const srcPath = join(PROJECT_ROOT, file.src);
     const destPath = join(REFERENCES_DIR, file.destName);
     if (!existsSync(srcPath)) {
-      console.error(`✗ 找不到資源檔案：${file.src}`);
+      console.error(`✗ Resource file not found: ${file.src}`);
       process.exit(1);
     }
     copyFileSync(srcPath, destPath);
@@ -246,7 +246,7 @@ function copyFilesToReferences(): void {
 }
 
 /**
- * 遞迴收集目錄下所有檔案，回傳相對路徑列表。
+ * Recursively collect all files in a directory, returning relative paths.
  */
 function collectFiles(dir: string, baseDir: string): string[] {
   const results: string[] = [];
@@ -263,29 +263,29 @@ function collectFiles(dir: string, baseDir: string): string[] {
 }
 
 /**
- * 步驟 3：打包為 .skill（Zip）檔案
+ * Step 3: Package into a .skill (Zip) file
  */
 async function packageSkill(): Promise<void> {
-  logStep("打包 .skill 檔案...");
+  logStep("Packaging .skill file...");
 
   if (!existsSync(SKILL_SRC_DIR)) {
-    console.error(`✗ 找不到 skill 原始碼目錄：${SKILL_SRC_DIR}`);
+    console.error(`✗ Skill source directory not found: ${SKILL_SRC_DIR}`);
     process.exit(1);
   }
 
-  // 收集所有檔案
+  // Collect all files
   const files = collectFiles(SKILL_SRC_DIR, SKILL_SRC_DIR);
   if (files.length === 0) {
-    console.error("✗ skill-src 目錄中沒有任何檔案");
+    console.error("✗ No files found in skill-src directory");
     process.exit(1);
   }
 
-  log(`找到 ${files.length} 個檔案：`);
+  log(`Found ${files.length} files:`);
   for (const f of files) {
     log(`  - ${f}`);
   }
 
-  // 建立 Zip entries
+  // Create Zip entries
   const entries: ZipEntry[] = [];
   for (const file of files) {
     const fullPath = join(SKILL_SRC_DIR, file);
@@ -294,36 +294,36 @@ async function packageSkill(): Promise<void> {
     entries.push({ name: file, data });
   }
 
-  // 產生 Zip 檔案
+  // Generate Zip file
   const zipBuffer = await createZip(entries);
   const { writeFileSync } = await import("node:fs");
   writeFileSync(OUTPUT_FILE, zipBuffer);
 
-  log(`✓ 已產生 .skill 檔案`);
+  log(`✓ .skill file generated`);
 }
 
 /**
- * 步驟 4：輸出檔案資訊
+ * Step 4: Output file information
  */
 function printResult(): void {
-  logStep("建置結果");
+  logStep("Build result");
 
   const stats = statSync(OUTPUT_FILE);
   const sizeKB = (stats.size / 1024).toFixed(1);
 
   console.log("");
-  console.log(`  📦 檔案路徑：${OUTPUT_FILE}`);
-  console.log(`  📏 檔案大小：${stats.size} bytes (${sizeKB} KB)`);
+  console.log(`  📦 File path: ${OUTPUT_FILE}`);
+  console.log(`  📏 File size: ${stats.size} bytes (${sizeKB} KB)`);
   console.log("");
-  console.log("  ✅ Skill 建置完成！");
+  console.log("  ✅ Skill build complete!");
   console.log("");
 }
 
-// ── 主程式 ────────────────────────────────────────────────────────
+// ── Main ──────────────────────────────────────────────────────
 
 async function main(): Promise<void> {
   console.log("═══════════════════════════════════════════");
-  console.log("  🔨 Skill 建置與打包");
+  console.log("  🔨 Skill Build and Package");
   console.log("═══════════════════════════════════════════");
 
   await compileTypeScript();
@@ -333,6 +333,6 @@ async function main(): Promise<void> {
 }
 
 main().catch((err) => {
-  console.error("✗ 建置過程發生未預期的錯誤：", err);
+  console.error("✗ Unexpected error during build:", err);
   process.exit(1);
 });

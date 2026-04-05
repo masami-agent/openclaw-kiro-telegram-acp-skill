@@ -1,9 +1,12 @@
 {
-  "name": "kiro_default",
-  "description": "Default Kiro agent for Telegram relay usage",
-  "prompt": "You are a helpful assistant. Always respond in English.",
+  "_comments": {
+    "resources": "在 resources 陣列中加入你自己的 KB 檔案路徑（相對於 OpenClaw workspace 根目錄）。例如：'./templates/my-kb.md' 或 './docs/my-guide.md'。路徑必須使用相對路徑格式（以 ./ 開頭），OpenClaw 會自動解析。部署前請確認檔案存在於指定路徑。"
+  },
+  "name": "kiro",
+  "description": "Kiro agent for Telegram relay",
+  "prompt": "You are a helpful assistant.",
   "resources": [
-    "file:///home/YOUR_USER/.openclaw/workspace/kiro-settings/kb-preferences.md"
+    "./templates/kb-example.md"
   ],
   "useLegacyMcpJson": true
 }
