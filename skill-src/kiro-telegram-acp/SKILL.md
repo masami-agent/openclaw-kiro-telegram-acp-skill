@@ -105,7 +105,7 @@ When packaging this pattern as a public OpenClaw skill, include:
 - `SKILL.md` with the integration workflow and constraints
 - `references/architecture.md` describing the end-to-end message flow
 - `references/hook-template.ts` with a reusable TypeScript hook example
-- `references/kiro-acp-ask.js` with a wrapper contract stub
+- `references/kiro-acp-ask.js` with a minimal working ACP wrapper
 - `references/kiro-agent-template.json` with a sample Kiro agent definition
 - optional public README outside the skill folder if publishing a GitHub repo for humans
 
@@ -173,8 +173,10 @@ State these explicitly in docs:
 Read these files when you need concrete examples:
 
 - `references/architecture.md` for a concise architecture summary
+- `references/deployment.md` for deployment steps and troubleshooting
+- `references/wrapper-contract.md` for the stdout/stderr contract expected by the hook
 - `references/hook-template.ts` for a reusable OpenClaw hook example
-- `references/kiro-acp-ask.js` for the wrapper contract stub
+- `references/kiro-acp-ask.js` for the minimal working ACP wrapper
 - `references/kiro-agent-template.json` for a sample Kiro agent definition
 
 ## Validation Checklist
