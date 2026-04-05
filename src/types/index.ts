@@ -7,7 +7,6 @@
 export interface SkillConfig {
   kiroAgentName: string; // 預設: "kiro"
   kiroTimeoutMs: number; // 預設: 120000
-  kiroWrapperCmd: string; // 預設: "kiro-acp-ask"
   allowedChatIds: string[]; // 預設: []（空=不限制）
   replyPrefix: string; // 預設: "🤖 Kiro"
   debugMode: boolean; // 預設: false
@@ -27,35 +26,7 @@ export interface OpenClawEvent {
   };
 }
 
-// --- JSON-RPC ---
 
-export interface JsonRpcRequest {
-  jsonrpc: "2.0";
-  id: number;
-  method: string;
-  params?: Record<string, unknown>;
-}
-
-export interface JsonRpcResponse {
-  jsonrpc: "2.0";
-  id: number;
-  result?: unknown;
-  error?: {
-    code: number;
-    message: string;
-    data?: unknown;
-  };
-}
-
-// --- ACP ---
-
-export type AcpMethod =
-  | "initialize"
-  | "acp/createSession"
-  | "acp/bindSession"
-  | "acp/sendMessage"
-  | "acp/getSessionHistory"
-  | "shutdown";
 
 // --- Error Handling ---
 
@@ -136,16 +107,4 @@ export interface ErrorTracker {
   threshold: number; // 觸發額外提示的閾值（預設 3）
 }
 
-// --- ACP Wrapper ---
 
-export interface AcpWrapperOptions {
-  agentName: string;
-  prompt: string;
-  timeoutMs: number;
-  sessionId?: string;
-}
-
-export interface AcpWrapperResult {
-  text: string;
-  sessionId: string;
-}

@@ -23,8 +23,6 @@ export function loadConfig(): SkillConfig {
     );
   }
 
-  const kiroWrapperCmd = env.KIRO_WRAPPER_CMD ?? "kiro-acp-ask";
-
   const rawChatIds = env.ALLOWED_CHAT_IDS ?? "";
   const allowedChatIds = rawChatIds
     .split(",")
@@ -39,7 +37,6 @@ export function loadConfig(): SkillConfig {
   return {
     kiroAgentName,
     kiroTimeoutMs,
-    kiroWrapperCmd,
     allowedChatIds,
     replyPrefix,
     debugMode,

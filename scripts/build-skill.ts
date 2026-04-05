@@ -45,10 +45,6 @@ const OUTPUT_FILE = join(PROJECT_ROOT, "kiro-telegram-acp.skill");
  */
 const COMPILED_FILES_TO_COPY: Array<{ src: string; destName: string }> = [
   {
-    src: "dist/src/wrapper/kiro-acp-ask.js",
-    destName: "kiro-acp-ask.js",
-  },
-  {
     src: "dist/src/hook/handler.js",
     destName: "hook-template.ts", // 保留原始 .ts 副檔名作為範本參考
   },

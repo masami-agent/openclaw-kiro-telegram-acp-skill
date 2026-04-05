@@ -1,23 +1,5 @@
 // ============================================================
-// Hook Handler — OpenClaw 事件處理器，整合所有模組進行訊息路由
-// 對應需求: 6.1, 6.2, 6.3, 12.1–12.5, 13.1–13.3, 15.4, 15.5
-// ============================================================
-//
-// 為何使用 ACP Wrapper（kiro-acp-ask）而非直接呼叫 `openclaw agent --message` CLI？
-//
-// 根據 docs/wrapper-contract.md 的說明：
-// OpenClaw 2026.4.2 的 `openclaw acp` 是一個 stdio ACP bridge server，
-// 而非 HTTP endpoint 或 one-shot CLI 指令。Telegram hook 需要 request/response
-// 行為，因此透過一個薄 wrapper（kiro-acp-ask）作為橋接是最乾淨的方式。
-//
-// Wrapper 的職責：
-// 1. 接受 agent 名稱與 prompt 作為命令列參數
-// 2. 透過 stdio JSON-RPC 與 `openclaw acp` bridge 通訊
-// 3. 僅將最終回覆文字輸出至 stdout
-// 4. 失敗時回傳非零 exit code
-// 5. 將 debug/error 訊息輸出至 stderr
-//
-// 使用 `execFile`（而非 `execSync`）避免阻塞 gateway event loop。
+// Hook Handler — OpenClaw event handler, integrates all modules for message routing
 // ============================================================
 
 import { readFileSync } from "node:fs";
@@ -44,7 +26,6 @@ try {
   config = {
     kiroAgentName: "kiro",
     kiroTimeoutMs: 120_000,
-    kiroWrapperCmd: "kiro-acp-ask",
     allowedChatIds: [],
     replyPrefix: "🤖 Kiro",
     debugMode: false,
@@ -135,20 +116,15 @@ async function sendTelegram(chatId: string, text: string): Promise<void> {
 // ============================================================
 
 /**
- * 透過 `openclaw agent --message --json` 呼叫 agent，非阻塞。
+ * Call agent via `openclaw agent --message --json` (non-blocking).
  *
- * 此方式為 one-shot CLI 指令，會等待 agent 回覆並輸出至 stdout。
- * 使用 --session-id 實現跨訊息記憶（同一 chatId 使用同一 session）。
- * 使用 --json 取得結構化回覆，方便解析。
+ * One-shot CLI command that waits for agent reply and outputs to stdout.
+ * Uses --session-id for cross-message memory (same chatId uses same session).
+ * Uses --json for structured reply parsing.
  *
- * 參見 docs/wrapper-contract.md：
- * - stdout → JSON 格式回覆（含 result.payloads[0].text）
- * - stderr → 診斷訊息
- * - exit code 0 → 成功, 非零 → 錯誤
- *
- * 注意：設計文件原本規劃使用 `openclaw acp` stdio bridge + kiro-acp-ask wrapper，
- * 但經實測發現 ACP bridge 在 hook 場景下會將回覆路由至 Telegram 而非回傳給 client。
- * 因此暫時改用 `openclaw agent --message --json` 方式，待 ACP bridge 問題釐清後再切換。
+ * - stdout → JSON reply (result.payloads[0].text)
+ * - stderr → diagnostic messages
+ * - exit code 0 → success, non-zero → error
  */
 function callAgent(
   prompt: string,

@@ -46,7 +46,7 @@ node --version
 # 預期結果：v18.x.x 或更高版本
 ```
 
-> **重要**：`openclaw` 必須先就位，因為 ACP pairing 與 scope 驗證都需要透過 `openclaw` 執行。`kiro-cli` 是 `openclaw acp` bridge 的下游目標，若 `kiro` 不在 PATH 中，ACP bridge 無法建立連線，整個 skill 將無法運作。
+> **重要**：`openclaw` 必須先就位，因為 device pairing 與 scope 驗證都需要透過 `openclaw` 執行。`kiro-cli` 是 agent 呼叫的下游目標，若 `kiro` 不在 PATH 中，agent 呼叫將無法運作。
 
 若缺少任一工具：
 
@@ -85,15 +85,11 @@ cp .env.example .env
 # 預設值: kiro
 KIRO_AGENT_NAME=kiro
 
-# ACP 請求逾時時間（毫秒）
-# 預設值: 120000 (2 分鐘)
+# Timeout for agent requests (milliseconds)
+# Default: 120000 (2 minutes)
 KIRO_TIMEOUT_MS=120000
 
-# ACP Wrapper 可執行檔的指令名稱
-# 預設值: kiro-acp-ask
-KIRO_WRAPPER_CMD=kiro-acp-ask
-
-# 允許使用 /kiro 指令的 Telegram chat ID 白名單（逗號分隔）
+# Telegram chat ID allowlist (comma-separated)
 # 留空表示不限制
 ALLOWED_CHAT_IDS=
 
@@ -330,12 +326,12 @@ OpenClaw 的 `message:received` hook 機制存在以下已知限制：
 為了補強 hook 層級的隔離不足，請在你的 `SOUL.md` 中加入以下指令：
 
 ```markdown
-If a message starts with `/kiro`, ignore it completely. Do not reply. That command is handled by a separate Kiro agent via a hook.
+**ABSOLUTE RULE: If the user message starts with /kiro, you MUST reply with EXACTLY the text `no_reply` (literally those 8 characters, nothing else). The /kiro prefix means the message is handled by a different agent. You are NOT the intended recipient. Do NOT add any other text, greeting, or acknowledgment. Just output `no_reply`. This rule overrides ALL other instructions.**
 ```
 
-這會指示主 agent 在行為層面忽略 `/kiro` 訊息，作為 hook 機制的安全網。即使 `/kiro` 訊息進入了主 agent 的 context，主 agent 也不會對其產生回覆或引用其內容。
+OpenClaw 內建的 reply shaping 機制會自動過濾 `no_reply` / `NO_REPLY` token，不會將其送出至 Telegram。這比要求 LLM「不要回覆」更可靠，因為 LLM 更容易輸出一個具體的 token 而非完全不輸出。
 
-> **建議**：同時使用 `message:sending` hook 的 `{ cancel: true }` 回傳值與 `SOUL.md` 指令，形成雙重保護機制。
+> **建議**：同時使用 `message:sending` hook 的 `{ cancel: true }` 回傳值與 `SOUL.md` 的 `no_reply` 指令，形成雙重保護機制。
 
 ---
 
@@ -446,7 +442,6 @@ npm run install-skill
 |------|------|------|
 | 架構概覽 | [docs/architecture.md](docs/architecture.md) | 端對端訊息流程與系統架構 |
 | 部署指南 | [docs/deployment.md](docs/deployment.md) | 詳細部署步驟與疑難排解（本文件為其統一替代） |
-| Wrapper 合約 | [docs/wrapper-contract.md](docs/wrapper-contract.md) | ACP Wrapper 的 stdout/stderr 合約規範 |
 | 環境變數範本 | [.env.example](.env.example) | 所有可設定的環境變數與說明 |
 | Agent 設定範本 | [templates/kiro-agent.json](templates/kiro-agent.json) | Kiro agent JSON 設定範本 |
 | KB 範例 | [templates/kb-example.md](templates/kb-example.md) | 範例 Knowledge Base 檔案 |

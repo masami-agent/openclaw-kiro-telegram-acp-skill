@@ -6,9 +6,8 @@
  *   2. openclaw CLI 可用性
  *   3. hook 檔案存在且已啟用
  *   4. agent 設定檔格式正確
- *   5. ACP Wrapper 可執行
- *   6. 環境變數已設定
- *   7. ACP device pairing 狀態
+ *   5. 環境變數已設定
+ *   6. ACP device pairing 狀態
  *
  * 透過 `npm run validate` 執行。
  * Exit code: 0 = 全部通過, 1 = 任一項目失敗
@@ -17,7 +16,7 @@
  */
 
 import { execFile } from "node:child_process";
-import { existsSync, readFileSync, accessSync, constants } from "node:fs";
+import { existsSync, readFileSync } from "node:fs";
 import { homedir } from "node:os";
 import { join, resolve } from "node:path";
 import { promisify } from "node:util";
@@ -33,7 +32,6 @@ const PROJECT_ROOT = resolve(import.meta.dirname ?? ".", "..", "..");
 const HOOKS_DIR = join(homedir(), ".openclaw", "workspace", "hooks");
 const HOOK_FILE = join(HOOKS_DIR, "kiro-telegram-handler.js");
 const AGENTS_DIR = join(homedir(), ".openclaw", "workspace", "agents");
-const WRAPPER_DIST = join(PROJECT_ROOT, "dist", "src", "wrapper", "kiro-acp-ask.js");
 const ENV_FILE = join(PROJECT_ROOT, ".env");
 
 /** kiro-cli 的可能指令名稱（依優先順序嘗試） */
@@ -227,41 +225,6 @@ async function checkAgentConfig(): Promise<CheckResult> {
   }
 }
 
-/** 5. ACP Wrapper 可執行 */
-async function checkWrapperExecutable(): Promise<CheckResult> {
-  const name = "ACP Wrapper 可執行";
-
-  if (!existsSync(WRAPPER_DIST)) {
-    return {
-      name,
-      passed: false,
-      message: `✗ ACP Wrapper 編譯檔不存在：${WRAPPER_DIST}`,
-      fix: [
-        "ACP Wrapper 尚未編譯，請執行：",
-        "  npm run build",
-        "確認編譯成功後重新執行驗證。",
-      ].join("\n  "),
-    };
-  }
-
-  // 檢查檔案是否可讀取
-  try {
-    accessSync(WRAPPER_DIST, constants.R_OK);
-  } catch {
-    return {
-      name,
-      passed: false,
-      message: `✗ ACP Wrapper 檔案無法讀取：${WRAPPER_DIST}`,
-      fix: [
-        "檔案權限不正確，請執行：",
-        `  chmod +r ${WRAPPER_DIST}`,
-      ].join("\n  "),
-    };
-  }
-
-  return { name, passed: true, message: `✓ ACP Wrapper 已編譯且可存取 (${WRAPPER_DIST})` };
-}
-
 /** 6. 環境變數已設定 */
 async function checkEnvVars(): Promise<CheckResult> {
   const name = "環境變數設定";
@@ -295,7 +258,6 @@ async function checkEnvVars(): Promise<CheckResult> {
     const expectedKeys = [
       "KIRO_AGENT_NAME",
       "KIRO_TIMEOUT_MS",
-      "KIRO_WRAPPER_CMD",
       "KIRO_REPLY_PREFIX",
       "KIRO_DEBUG",
     ];
@@ -386,7 +348,6 @@ async function main(): Promise<void> {
     checkOpenClawCli,
     checkHookExists,
     checkAgentConfig,
-    checkWrapperExecutable,
     checkEnvVars,
     checkAcpPairing,
   ];

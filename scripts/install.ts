@@ -235,7 +235,6 @@ async function setupEnv(): Promise<void> {
 
   const agentName = await prompt(rl, "  KIRO_AGENT_NAME — Kiro agent 名稱", "kiro");
   const timeoutMs = await prompt(rl, "  KIRO_TIMEOUT_MS — ACP 請求逾時（毫秒）", "120000");
-  const wrapperCmd = await prompt(rl, "  KIRO_WRAPPER_CMD — ACP Wrapper 指令", "kiro-acp-ask");
   const chatIds = await prompt(rl, "  ALLOWED_CHAT_IDS — 允許的 chat ID（逗號分隔，空=不限制）", "");
   const replyPrefix = await prompt(rl, "  KIRO_REPLY_PREFIX — 回覆前綴", "🤖 Kiro");
   const debug = await prompt(rl, "  KIRO_DEBUG — 除錯模式 (true/false)", "false");
@@ -247,7 +246,6 @@ async function setupEnv(): Promise<void> {
 
 KIRO_AGENT_NAME=${agentName}
 KIRO_TIMEOUT_MS=${timeoutMs}
-KIRO_WRAPPER_CMD=${wrapperCmd}
 ALLOWED_CHAT_IDS=${chatIds}
 KIRO_REPLY_PREFIX=${replyPrefix}
 KIRO_DEBUG=${debug}

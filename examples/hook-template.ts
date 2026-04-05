@@ -2,8 +2,6 @@ import { readFileSync } from "fs";
 import { execFile } from "child_process";
 
 const COMMAND_PREFIX = "/kiro";
-const WRAPPER_CMD = process.env.KIRO_WRAPPER_CMD || "kiro-acp-ask";
-const AGENT_NAME = process.env.KIRO_AGENT_NAME || "kiro_default";
 const AGENT_TIMEOUT_MS = Number(process.env.KIRO_TIMEOUT_MS || 120000);
 const ALLOWED_CHAT_IDS = (process.env.ALLOWED_CHAT_IDS || "")
   .split(",")
@@ -38,34 +36,43 @@ async function sendTelegram(chatId: string, text: string) {
 }
 
 /**
- * Query Kiro via the local ACP wrapper command (async, non-blocking).
+ * Query agent via `openclaw agent --message --json` (async, non-blocking).
  *
- * The wrapper (default: `kiro-acp-ask`) speaks ACP over stdio to
- * `openclaw acp` and returns the final assistant text on stdout.
- * See docs/wrapper-contract.md for the expected contract.
+ * Returns the assistant reply text from the JSON response.
+ * Uses a fixed session ID per chat for cross-message memory.
  */
-function queryKiro(prompt: string): Promise<string> {
+function queryAgent(prompt: string, sessionId: string): Promise<string> {
   return new Promise((resolve, reject) => {
     execFile(
-      WRAPPER_CMD,
-      [AGENT_NAME, prompt],
+      "openclaw",
+      ["agent", "--session-id", sessionId, "--message", prompt, "--json"],
       { timeout: AGENT_TIMEOUT_MS, encoding: "utf8" },
       (err, stdout, stderr) => {
         if (err) {
           reject(new Error(stderr?.slice(0, 200) || err.message));
           return;
         }
+        try {
+          const parsed = JSON.parse(stdout);
+          const text = parsed?.result?.payloads?.[0]?.text;
+          if (text) { resolve(text); return; }
+        } catch {}
         const text = stdout.trim();
         if (text) resolve(text);
-        else reject(new Error(stderr?.slice(0, 200) || "Empty response from Kiro"));
+        else reject(new Error(stderr?.slice(0, 200) || "Empty response from agent"));
       }
     );
   });
 }
 
+function getKiroSessionId(chatId: string): string {
+  return `kiro-telegram-${chatId}`;
+}
+
 async function handleKiroQuery(chatId: string, query: string) {
   try {
-    const reply = await queryKiro(query);
+    const sessionId = getKiroSessionId(chatId);
+    const reply = await queryAgent(query, sessionId);
     await sendTelegram(chatId, `🤖 Kiro\n\n${reply}`);
   } catch (err: any) {
     await sendTelegram(chatId, `🤖 Kiro\n\n⚠️ Error: ${err?.message || String(err)}`);
@@ -74,7 +81,7 @@ async function handleKiroQuery(chatId: string, query: string) {
 
 /**
  * Extract the numeric chat ID from OpenClaw event context.
- * OpenClaw 2026.4.2 uses `conversationId` (not `chatId`) with a `telegram:` prefix.
+ * OpenClaw uses `conversationId` with a `telegram:` prefix.
  */
 function extractChatId(event: any): string {
   const raw = String(event?.context?.conversationId || event?.context?.from || "");
@@ -84,9 +91,6 @@ function extractChatId(event: any): string {
 const handler = (event: any) => {
   // ── message:sending ─────────────────────────────────────────────
   // Cancel the main OpenClaw agent reply when a /kiro command is pending.
-  //
-  // IMPORTANT: message:received is a void hook — its return value is discarded.
-  // Only message:sending supports { cancel: true } to block outgoing replies.
   if (event?.type === "message" && event?.action === "sending") {
     const sessionKey = String(event?.sessionKey || "");
     if (pendingKiroSessions.has(sessionKey)) {
