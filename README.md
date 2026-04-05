@@ -1,27 +1,27 @@
 # openclaw-kiro-telegram-acp
 
-透過 Telegram `/kiro` 指令，將使用者的訊息經由 OpenClaw ACP bridge 轉發至下游 Kiro agent，並將回覆傳回 Telegram。
+Relay user messages from Telegram via the `/kiro` command through the OpenClaw ACP bridge to a downstream Kiro agent, and send the reply back to Telegram.
 
 ```text
 Telegram → OpenClaw Hook → ACP Wrapper → openclaw acp (stdio bridge) → Kiro Agent → Telegram
 ```
 
-## 功能特色
+## Features
 
-- 🤖 **Telegram `/kiro` 指令** — 在 Telegram 中直接與 Kiro agent 對話
-- 🔀 **雙重回覆抑制** — `message:received` 攔截指令，`message:sending` 以 `{ cancel: true }` 取消主 agent 回覆
-- 🧠 **跨訊息記憶** — 同一 chat 的 `/kiro` 對話共享固定 session，Kiro 能記住先前的對話內容
-- 🔒 **Chat ID 白名單** — 限制僅允許信任的 Telegram 使用者存取
-- 🛡️ **錯誤訊息格式化** — JSON-RPC error、provider error、ACP 權限錯誤皆轉換為使用者友善的訊息
-- ⚡ **非同步非阻塞** — 使用 `execFile` 避免凍結 gateway event loop
-- 📦 **OpenClaw Skill 封裝** — 可透過 `skill-src/` 或 ClawHub 安裝
-- 🔧 **環境變數設定** — agent 名稱、timeout、chat 白名單、回覆前綴皆可透過 `.env` 調整
+- 🤖 **Telegram `/kiro` command** — Chat with the Kiro agent directly in Telegram
+- 🔀 **Dual reply suppression** — `message:received` intercepts the command, `message:sending` cancels the main agent reply with `{ cancel: true }`
+- 🧠 **Cross-message memory** — `/kiro` conversations within the same chat share a fixed session, allowing Kiro to remember previous context
+- 🔒 **Chat ID allowlist** — Restrict access to trusted Telegram users only
+- 🛡️ **Error message formatting** — JSON-RPC errors, provider errors, and ACP permission errors are converted to user-friendly messages
+- ⚡ **Async non-blocking** — Uses `execFile` to avoid freezing the gateway event loop
+- 📦 **OpenClaw Skill packaging** — Installable via `skill-src/` or ClawHub
+- 🔧 **Environment variable configuration** — Agent name, timeout, chat allowlist, and reply prefix are all configurable via `.env`
 
-## 快速開始
+## Quick Start
 
-完整的安裝步驟請參閱 **[INSTALL.md](INSTALL.md)**。
+For complete installation steps, see **[INSTALL.md](INSTALL.md)**.
 
-若偏好自動化流程，可使用內建的互動式安裝腳本：
+If you prefer an automated flow, use the built-in interactive install script:
 
 ```bash
 npm install
@@ -29,43 +29,43 @@ npm run build
 npm run install-skill
 ```
 
-安裝後執行驗證：
+After installation, run validation:
 
 ```bash
 npm run validate
 ```
 
-## 相容性說明
+## Compatibility Notes
 
-本專案針對 OpenClaw `2026.4.2` 開發，其中 `openclaw acp` 為 **stdio JSON-RPC bridge**（非 HTTP server，亦非 one-shot `ask` 指令）。
+This project is developed for OpenClaw `2026.4.2`, where `openclaw acp` is a **stdio JSON-RPC bridge** (not an HTTP server, nor a one-shot `ask` command).
 
-## 專案結構
+## Project Structure
 
 ```text
 .
-├── INSTALL.md                      # 統一安裝指南（唯一安裝參考來源）
-├── .env.example                    # 環境變數範本
+├── INSTALL.md                      # Unified installation guide (single source of truth)
+├── .env.example                    # Environment variable template
 ├── src/
 │   ├── hook/handler.ts             # OpenClaw Hook handler
-│   ├── wrapper/kiro-acp-ask.ts     # ACP Wrapper 實作
-│   └── lib/                        # 核心模組（config、error-formatter 等）
-├── scripts/                        # 自動化腳本（install、validate、build-skill）
-├── templates/                      # Agent config 與 KB 範本
-├── skill-src/                      # Skill 原始碼（打包用）
-├── docs/                           # 架構、部署、wrapper 合約文件
-└── examples/                       # 範例檔案
+│   ├── wrapper/kiro-acp-ask.ts     # ACP Wrapper implementation
+│   └── lib/                        # Core modules (config, error-formatter, etc.)
+├── scripts/                        # Automation scripts (install, validate, build-skill)
+├── templates/                      # Agent config and KB templates
+├── skill-src/                      # Skill source code (for packaging)
+├── docs/                           # Architecture, deployment, wrapper contract docs
+└── examples/                       # Example files
 ```
 
-## 相關文件
+## Related Documents
 
-| 文件 | 說明 |
-|------|------|
-| [INSTALL.md](INSTALL.md) | 統一安裝指南 — 前置需求、環境設定、hook 部署、ACP pairing、驗證測試 |
-| [docs/architecture.md](docs/architecture.md) | 端對端訊息流程與系統架構 |
-| [docs/wrapper-contract.md](docs/wrapper-contract.md) | ACP Wrapper 的 stdout/stderr 合約規範 |
-| [docs/deployment.md](docs/deployment.md) | 部署步驟與疑難排解 |
-| [.env.example](.env.example) | 所有可設定的環境變數與說明 |
-| [templates/kiro-agent.json](templates/kiro-agent.json) | Kiro agent JSON 設定範本 |
+| Document | Description |
+|----------|-------------|
+| [INSTALL.md](INSTALL.md) | Unified installation guide — prerequisites, environment setup, hook deployment, ACP pairing, validation |
+| [docs/architecture.md](docs/architecture.md) | End-to-end message flow and system architecture |
+| [docs/wrapper-contract.md](docs/wrapper-contract.md) | ACP Wrapper stdout/stderr contract specification |
+| [docs/deployment.md](docs/deployment.md) | Deployment steps and troubleshooting |
+| [.env.example](.env.example) | All configurable environment variables with descriptions |
+| [templates/kiro-agent.json](templates/kiro-agent.json) | Kiro agent JSON configuration template |
 
 ## License
 
