@@ -1,6 +1,6 @@
 /**
- * 產生可直接部署至 OpenClaw hooks 目錄的獨立 handler.ts
- * 整合所有改善功能，不依賴外部 npm 模組。
+ * Generate a standalone handler.ts deployable directly to the OpenClaw hooks directory.
+ * Integrates all improvement features with no external npm module dependencies.
  */
 
 import { writeFileSync, mkdirSync } from "node:fs";
@@ -15,25 +15,25 @@ import { readFileSync, appendFileSync } from "fs";
 import { execFile } from "child_process";
 
 // ============================================================
-// 設定
+// Configuration
 // ============================================================
 
 const COMMAND_PREFIX = "/kiro";
-const ALLOWED_CHAT_IDS: string[] = []; // 空 = 不限制
+const ALLOWED_CHAT_IDS: string[] = []; // empty = no restrictions
 const AGENT_TIMEOUT = 120_000;
 const LOG_FILE = "/tmp/kiro-hook-debug.log";
 const REPLY_PREFIX = "🤖 Kiro";
 
 // ============================================================
-// Reply Suppressor（需求 12）
-// 使用同步標記機制確保 message:sending 能可靠取消主 agent 回覆
+// Reply Suppressor (Requirement 12)
+// Uses synchronous marking to ensure message:sending can reliably cancel the main agent reply
 // ============================================================
 
 const pendingKiroSessions = new Map<string, number>();
 const SESSION_TTL_MS = 30_000;
 
 function markSession(sessionKey: string): void {
-  // 清除過期標記
+  // Purge expired marks
   const now = Date.now();
   for (const [key, ts] of pendingKiroSessions) {
     if (now - ts >= SESSION_TTL_MS) pendingKiroSessions.delete(key);
@@ -55,8 +55,8 @@ function shouldCancel(sessionKey: string): boolean {
 }
 
 // ============================================================
-// Session Isolator（需求 13）
-// 使用固定 session ID 實現跨訊息記憶
+// Session Isolator (Requirement 13)
+// Uses fixed session IDs for cross-message memory
 // ============================================================
 
 function getKiroSessionId(chatId: string): string {
@@ -64,7 +64,7 @@ function getKiroSessionId(chatId: string): string {
 }
 
 // ============================================================
-// Error Formatter（需求 11, 15）
+// Error Formatter (Requirements 11, 15)
 // ============================================================
 
 interface ErrorMapping {
@@ -74,28 +74,28 @@ interface ErrorMapping {
 }
 
 const ERROR_MAPPINGS: ErrorMapping[] = [
-  { pattern: /"code"\\s*:\\s*-32603/, type: "json_rpc", message: "⚠️ 服務內部錯誤，請稍後再試。" },
-  { pattern: /"code"\\s*:\\s*-32600/, type: "json_rpc", message: "⚠️ 請求格式錯誤，請重新嘗試。" },
-  { pattern: /"code"\\s*:\\s*-32601/, type: "json_rpc", message: "⚠️ 指定的服務方法不存在，請確認設定。" },
-  { pattern: /finish_reason\\s*:\\s*error|finish_reason.*error/i, type: "provider", message: "⚠️ AI 服務暫時無法回應，請稍後再試。" },
-  { pattern: /rate_limit/i, type: "provider", message: "⚠️ AI 服務請求過於頻繁，請稍後再試。" },
-  { pattern: /context_length_exceeded/i, type: "provider", message: "⚠️ 訊息過長，請縮短後重試。" },
-  { pattern: /model_not_found/i, type: "provider", message: "⚠️ AI 模型設定錯誤，請聯繫管理員。" },
-  { pattern: /AccessDeniedException/i, type: "acp_permission", message: "🔐 ACP 權限不足，請執行 openclaw acp pair 完成 device pairing。" },
-  { pattern: /pairing required/i, type: "acp_permission", message: "🔐 需要完成 device pairing，請參閱安裝指南。" },
-  { pattern: /timeout|timed?\\s*out/i, type: "timeout", message: "⏱️ Kiro 回應逾時，請稍後再試。" },
+  { pattern: /"code"\\s*:\\s*-32603/, type: "json_rpc", message: "⚠️ Internal service error. Please try again later." },
+  { pattern: /"code"\\s*:\\s*-32600/, type: "json_rpc", message: "⚠️ Invalid request format. Please try again." },
+  { pattern: /"code"\\s*:\\s*-32601/, type: "json_rpc", message: "⚠️ The specified service method does not exist. Please check the configuration." },
+  { pattern: /finish_reason\\s*:\\s*error|finish_reason.*error/i, type: "provider", message: "⚠️ The AI service is temporarily unavailable. Please try again later." },
+  { pattern: /rate_limit/i, type: "provider", message: "⚠️ AI service rate limit exceeded. Please try again later." },
+  { pattern: /context_length_exceeded/i, type: "provider", message: "⚠️ Message too long. Please shorten it and try again." },
+  { pattern: /model_not_found/i, type: "provider", message: "⚠️ AI model configuration error. Please contact the administrator." },
+  { pattern: /AccessDeniedException/i, type: "acp_permission", message: "🔐 Insufficient ACP permissions. Please run openclaw acp pair to complete device pairing." },
+  { pattern: /pairing required/i, type: "acp_permission", message: "🔐 Device pairing required. Please refer to the installation guide." },
+  { pattern: /timeout|timed?\\s*out/i, type: "timeout", message: "⏱️ Kiro response timed out. Please try again later." },
 ];
 
 function formatError(raw: string, exitCode: number): { message: string; type: string } {
-  if (exitCode === 3) return { message: "⏱️ Kiro 回應逾時，請稍後再試。", type: "timeout" };
+  if (exitCode === 3) return { message: "⏱️ Kiro response timed out. Please try again later.", type: "timeout" };
   for (const m of ERROR_MAPPINGS) {
     if (m.pattern.test(raw)) return { message: m.message, type: m.type };
   }
-  return { message: "⚠️ Kiro 暫時無法處理您的請求，請稍後再試。", type: "unknown" };
+  return { message: "⚠️ Kiro is temporarily unable to process your request. Please try again later.", type: "unknown" };
 }
 
 // ============================================================
-// Provider 錯誤頻率追蹤（需求 15.5）
+// Provider error frequency tracking (Requirement 15.5)
 // ============================================================
 
 const providerErrors = new Map<string, number[]>();
@@ -104,13 +104,13 @@ function trackProviderError(chatId: string): boolean {
   const now = Date.now();
   let timestamps = providerErrors.get(chatId) || [];
   timestamps.push(now);
-  timestamps = timestamps.filter(t => now - t < 300_000); // 5 分鐘視窗
+  timestamps = timestamps.filter(t => now - t < 300_000); // 5-minute window
   providerErrors.set(chatId, timestamps);
   return timestamps.length >= 3;
 }
 
 // ============================================================
-// 工具函式
+// Utility functions
 // ============================================================
 
 function log(msg: string) {
@@ -139,7 +139,7 @@ async function sendTelegram(chatId: string, text: string) {
 }
 
 // ============================================================
-// Agent 呼叫（使用 openclaw agent --message --json）
+// Agent invocation (using openclaw agent --message --json)
 // ============================================================
 
 function queryAgent(prompt: string, sessionId: string): Promise<{ text: string; exitCode: number; raw: string }> {
@@ -154,7 +154,7 @@ function queryAgent(prompt: string, sessionId: string): Promise<{ text: string; 
           resolve({ text: "", exitCode, raw: [stdout, stderr, err.message].filter(Boolean).join("\\n") });
           return;
         }
-        // 解析 JSON 回覆
+        // Parse JSON reply
         try {
           const parsed = JSON.parse(stdout);
           const text = parsed?.result?.payloads?.[0]?.text;
@@ -170,7 +170,7 @@ function queryAgent(prompt: string, sessionId: string): Promise<{ text: string; 
 }
 
 // ============================================================
-// 核心處理邏輯
+// Core processing logic
 // ============================================================
 
 async function handleKiroQuery(chatId: string, query: string, sessionId: string) {
@@ -179,30 +179,30 @@ async function handleKiroQuery(chatId: string, query: string, sessionId: string)
     const result = await queryAgent(query, sessionId);
 
     if (result.exitCode !== 0) {
-      // 錯誤路徑
+      // Error path
       const formatted = formatError(result.raw, result.exitCode);
       log(\`Error: type=\${formatted.type} raw=\${result.raw.slice(0, 200)}\`);
 
       let msg = \`\${REPLY_PREFIX}\\n\\n\${formatted.message}\`;
       if (formatted.type === "provider" && trackProviderError(chatId)) {
-        msg += "\\n\\n如持續發生此問題，請聯繫管理員檢查 AI provider 狀態。";
+        msg += "\\n\\nIf this issue persists, please contact the administrator to check the AI provider status.";
       }
       await sendTelegram(chatId, msg);
       return;
     }
 
     if (!result.text) {
-      await sendTelegram(chatId, \`\${REPLY_PREFIX}\\n\\n⚠️ 收到空白回覆，請稍後再試。\`);
+      await sendTelegram(chatId, \`\${REPLY_PREFIX}\\n\\n⚠️ Received an empty reply. Please try again later.\`);
       return;
     }
 
-    // 檢查回覆是否包含 provider 錯誤
+    // Check if the reply contains a provider error
     const formatted = formatError(result.text, 0);
     if (formatted.type === "provider") {
       log(\`Provider error in reply: \${result.text.slice(0, 200)}\`);
       let msg = \`\${REPLY_PREFIX}\\n\\n\${formatted.message}\`;
       if (trackProviderError(chatId)) {
-        msg += "\\n\\n如持續發生此問題，請聯繫管理員檢查 AI provider 狀態。";
+        msg += "\\n\\nIf this issue persists, please contact the administrator to check the AI provider status.";
       }
       await sendTelegram(chatId, msg);
       return;
@@ -213,7 +213,7 @@ async function handleKiroQuery(chatId: string, query: string, sessionId: string)
   } catch (err: any) {
     log(\`Unexpected error: \${err?.message || String(err)}\`);
     try {
-      await sendTelegram(chatId, \`\${REPLY_PREFIX}\\n\\n⚠️ Kiro 暫時無法處理您的請求，請稍後再試。\`);
+      await sendTelegram(chatId, \`\${REPLY_PREFIX}\\n\\n⚠️ Kiro is temporarily unable to process your request. Please try again later.\`);
     } catch {}
   }
 }
@@ -223,7 +223,7 @@ async function handleKiroQuery(chatId: string, query: string, sessionId: string)
 // ============================================================
 
 const handler = (event: any) => {
-  // message:sending — 取消主 agent 回覆
+  // message:sending — cancel main agent reply
   if (event?.type === "message" && event?.action === "sending") {
     const sessionKey = String(event?.sessionKey || "");
     if (shouldCancel(sessionKey)) {
@@ -245,16 +245,16 @@ const handler = (event: any) => {
   if (!content || !content.startsWith(COMMAND_PREFIX)) return;
   if (ALLOWED_CHAT_IDS.length && !ALLOWED_CHAT_IDS.includes(chatId)) return;
 
-  // 同步標記 session（需求 12.3）
+  // Synchronously mark session (Requirement 12.3)
   markSession(sessionKey);
 
-  // 取得固定 Kiro session ID（需求 13.5）
+  // Get fixed Kiro session ID (Requirement 13.5)
   const kiroSessionId = getKiroSessionId(chatId);
 
   const query = content.replace(/^\\/kiro\\s*/, "").trim();
   if (!query) {
-    pendingKiroSessions.set(sessionKey, Date.now()); // 確保 usage 訊息也取消主 agent
-    sendTelegram(chatId, \`\${REPLY_PREFIX}\\n\\nUsage: /kiro <你的問題>\`);
+    pendingKiroSessions.set(sessionKey, Date.now()); // Ensure usage message also cancels main agent
+    sendTelegram(chatId, \`\${REPLY_PREFIX}\\n\\nUsage: /kiro <your question>\`);
     return;
   }
 
@@ -265,7 +265,7 @@ const handler = (event: any) => {
 export default handler;
 `.trim();
 
-// 寫入檔案
+// Write file
 mkdirSync(HOOKS_DIR, { recursive: true });
 writeFileSync(HANDLER_PATH, handlerCode, "utf-8");
-console.log(`✓ Hook handler 已部署至 ${HANDLER_PATH}`);
+console.log(`✓ Hook handler deployed to ${HANDLER_PATH}`);

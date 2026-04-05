@@ -1,19 +1,19 @@
 /**
- * scripts/validate.ts — Health Checker（安裝後驗證腳本）
+ * scripts/validate.ts — Health Checker (post-installation validation script)
  *
- * 依序檢查以下項目，每個失敗項目提供具體修復建議：
- *   1. kiro-cli 可用性（最優先，ACP bridge 根本依賴）
- *   2. openclaw CLI 可用性
- *   3. hook 檔案存在且已啟用
- *   4. agent 設定檔格式正確
- *   5. ACP Wrapper 可執行
- *   6. 環境變數已設定
- *   7. ACP device pairing 狀態
+ * Sequentially checks the following items, providing specific fix suggestions for each failure:
+ *   1. kiro-cli availability (highest priority, fundamental ACP bridge dependency)
+ *   2. openclaw CLI availability
+ *   3. Hook file exists and is enabled
+ *   4. Agent configuration file format is correct
+ *   5. ACP Wrapper is executable
+ *   6. Environment variables are set
+ *   7. ACP device pairing status
  *
- * 透過 `npm run validate` 執行。
- * Exit code: 0 = 全部通過, 1 = 任一項目失敗
+ * Run via `npm run validate`.
+ * Exit code: 0 = all passed, 1 = any item failed
  *
- * 對應需求: 9.1, 9.2, 9.3, 9.4
+ * Requirements: 9.1, 9.2, 9.3, 9.4
  */
 
 import { execFile } from "node:child_process";
@@ -26,9 +26,9 @@ import type { CheckResult } from "../src/types/index.js";
 
 const execFileAsync = promisify(execFile);
 
-// ── 常數 ──────────────────────────────────────────────────────
+// ── Constants ─────────────────────────────────────────────────
 
-// 編譯後位於 dist/scripts/validate.js，需往上兩層才是專案根目錄
+// Compiled to dist/scripts/validate.js, need to go up two levels to reach project root
 const PROJECT_ROOT = resolve(import.meta.dirname ?? ".", "..", "..");
 const HOOKS_DIR = join(homedir(), ".openclaw", "workspace", "hooks");
 const HOOK_FILE = join(HOOKS_DIR, "kiro-telegram-handler.js");
@@ -36,19 +36,19 @@ const AGENTS_DIR = join(homedir(), ".openclaw", "workspace", "agents");
 const WRAPPER_DIST = join(PROJECT_ROOT, "dist", "src", "wrapper", "kiro-acp-ask.js");
 const ENV_FILE = join(PROJECT_ROOT, ".env");
 
-/** kiro-cli 的可能指令名稱（依優先順序嘗試） */
+/** Possible kiro-cli command names (tried in priority order) */
 const KIRO_COMMANDS = ["kiro", "kiro-cli"];
 
-/** kiro-cli 可能的安裝路徑（PATH 找不到時的 fallback） */
+/** Possible kiro-cli installation paths (fallback when not found in PATH) */
 const KIRO_FALLBACK_PATHS = [
   join(homedir(), ".local", "bin"),
   join(homedir(), ".kiro", "bin"),
   "/usr/local/bin",
 ];
 
-// ── 工具函式 ──────────────────────────────────────────────────
+// ── Utility functions ─────────────────────────────────────────
 
-/** 嘗試執行外部指令，回傳 stdout 或 null（失敗時） */
+/** Try executing an external command, return stdout or null on failure */
 async function tryExec(cmd: string, args: string[]): Promise<string | null> {
   try {
     const { stdout } = await execFileAsync(cmd, args, { timeout: 15_000 });
@@ -58,21 +58,21 @@ async function tryExec(cmd: string, args: string[]): Promise<string | null> {
   }
 }
 
-// ── 檢查函式 ──────────────────────────────────────────────────
+// ── Check functions ───────────────────────────────────────────
 
-/** 1. [最優先] kiro-cli 可用性 */
+/** 1. [Highest priority] kiro-cli availability */
 async function checkKiroCli(): Promise<CheckResult> {
-  const name = "kiro-cli 可用性";
+  const name = "kiro-cli availability";
 
-  // 嘗試多個可能的指令名稱（kiro 或 kiro-cli）
+  // Try multiple possible command names (kiro or kiro-cli)
   for (const cmd of KIRO_COMMANDS) {
     const version = await tryExec(cmd, ["--version"]);
     if (version !== null) {
-      return { name, passed: true, message: `✓ ${cmd} 指令可正常執行 (${version})` };
+      return { name, passed: true, message: `✓ ${cmd} command works properly (${version})` };
     }
   }
 
-  // PATH 找不到時，嘗試常見安裝路徑
+  // If not found in PATH, try common installation paths
   for (const dir of KIRO_FALLBACK_PATHS) {
     for (const cmd of KIRO_COMMANDS) {
       const fullPath = join(dir, cmd);
@@ -82,7 +82,7 @@ async function checkKiroCli(): Promise<CheckResult> {
           return {
             name,
             passed: true,
-            message: `✓ ${cmd} 指令可正常執行 (${version})，位於 ${dir}（注意：此路徑不在 PATH 中）`,
+            message: `✓ ${cmd} command works properly (${version}), located in ${dir} (note: this path is not in PATH)`,
           };
         }
       }
@@ -92,47 +92,47 @@ async function checkKiroCli(): Promise<CheckResult> {
   return {
     name,
     passed: false,
-    message: "✗ 找不到 kiro 或 kiro-cli 指令",
+    message: "✗ Cannot find kiro or kiro-cli command",
     fix: [
-      "本 skill 的 openclaw acp bridge 需要 kiro-cli 才能連線至 Kiro agent。",
-      "請先安裝 Kiro：https://kiro.dev/docs/installation",
-      "安裝後確認 `kiro --version` 或 `kiro-cli --version` 可正常執行。",
-      "若已安裝但仍找不到，請確認 kiro 的安裝路徑已加入 PATH 環境變數。",
+      "This skill's openclaw acp bridge requires kiro-cli to connect to the Kiro agent.",
+      "Please install Kiro first: https://kiro.dev/docs/installation",
+      "After installation, confirm `kiro --version` or `kiro-cli --version` works properly.",
+      "If already installed but still not found, ensure kiro's installation path is added to the PATH environment variable.",
     ].join("\n  "),
   };
 }
 
-/** 2. openclaw CLI 可用性 */
+/** 2. openclaw CLI availability */
 async function checkOpenClawCli(): Promise<CheckResult> {
-  const name = "openclaw CLI 可用性";
+  const name = "openclaw CLI availability";
   const version = await tryExec("openclaw", ["--version"]);
   if (version !== null) {
-    return { name, passed: true, message: `✓ openclaw 指令可正常執行 (${version})` };
+    return { name, passed: true, message: `✓ openclaw command works properly (${version})` };
   }
   return {
     name,
     passed: false,
-    message: "✗ 找不到 openclaw 指令或無法執行",
+    message: "✗ Cannot find or execute openclaw command",
     fix: [
-      "請先安裝 OpenClaw CLI。",
-      "安裝後確認 `openclaw --version` 可正常執行。",
-      "若已安裝但仍找不到，請確認 openclaw 的安裝路徑已加入 PATH 環境變數。",
+      "Please install OpenClaw CLI first.",
+      "After installation, confirm `openclaw --version` works properly.",
+      "If already installed but still not found, ensure openclaw's installation path is added to the PATH environment variable.",
     ].join("\n  "),
   };
 }
 
-/** 3. hook 檔案存在且已啟用 */
+/** 3. Hook file exists and is enabled */
 async function checkHookExists(): Promise<CheckResult> {
-  const name = "hook 檔案狀態";
+  const name = "Hook file status";
   if (!existsSync(HOOKS_DIR)) {
     return {
       name,
       passed: false,
-      message: `✗ hooks 目錄不存在：${HOOKS_DIR}`,
+      message: `✗ Hooks directory does not exist: ${HOOKS_DIR}`,
       fix: [
-        "hooks 目錄尚未建立，請執行安裝腳本：",
+        "Hooks directory has not been created. Run the install script:",
         "  npm run install-skill",
-        "或手動建立目錄並部署 hook 檔案。",
+        "Or manually create the directory and deploy the hook file.",
       ].join("\n  "),
     };
   }
@@ -140,22 +140,22 @@ async function checkHookExists(): Promise<CheckResult> {
     return {
       name,
       passed: false,
-      message: `✗ hook 檔案不存在：${HOOK_FILE}`,
+      message: `✗ Hook file does not exist: ${HOOK_FILE}`,
       fix: [
-        "hook 檔案尚未部署，請執行安裝腳本：",
+        "Hook file has not been deployed. Run the install script:",
         "  npm run install-skill",
-        "或手動執行 `npm run build` 後將 dist/src/hook/handler.js 複製至上述路徑。",
+        "Or manually run `npm run build` then copy dist/src/hook/handler.js to the above path.",
       ].join("\n  "),
     };
   }
-  return { name, passed: true, message: `✓ hook 檔案已部署於 ${HOOK_FILE}` };
+  return { name, passed: true, message: `✓ Hook file deployed at ${HOOK_FILE}` };
 }
 
-/** 4. agent 設定檔格式正確 */
+/** 4. Agent configuration file format is correct */
 async function checkAgentConfig(): Promise<CheckResult> {
-  const name = "agent 設定檔格式";
+  const name = "Agent config file format";
 
-  // 嘗試從 .env 讀取 agent name，否則使用預設值
+  // Try to read agent name from .env, otherwise use default
   let agentName = "kiro";
   if (existsSync(ENV_FILE)) {
     try {
@@ -172,7 +172,7 @@ async function checkAgentConfig(): Promise<CheckResult> {
         }
       }
     } catch {
-      // 忽略讀取錯誤，使用預設值
+      // Ignore read errors, use default
     }
   }
 
@@ -181,106 +181,106 @@ async function checkAgentConfig(): Promise<CheckResult> {
     return {
       name,
       passed: false,
-      message: `✗ agent 設定檔不存在：${agentFile}`,
+      message: `✗ Agent config file does not exist: ${agentFile}`,
       fix: [
-        "agent 設定檔尚未產生，請執行安裝腳本：",
+        "Agent config file has not been generated. Run the install script:",
         "  npm run install-skill",
-        `或手動將 templates/kiro-agent.json 複製至 ${AGENTS_DIR}/${agentName}.json`,
+        `Or manually copy templates/kiro-agent.json to ${AGENTS_DIR}/${agentName}.json`,
       ].join("\n  "),
     };
   }
 
-  // 驗證 JSON 格式
+  // Validate JSON format
   try {
     const content = readFileSync(agentFile, "utf-8");
     const config = JSON.parse(content) as Record<string, unknown>;
 
-    // 檢查必要欄位
+    // Check required fields
     const requiredFields = ["name", "description", "prompt"];
     const missingFields = requiredFields.filter((f) => !(f in config));
     if (missingFields.length > 0) {
       return {
         name,
         passed: false,
-        message: `✗ agent 設定檔缺少必要欄位：${missingFields.join(", ")}`,
+        message: `✗ Agent config file missing required fields: ${missingFields.join(", ")}`,
         fix: [
-          `請編輯 ${agentFile}，確保包含以下欄位：`,
+          `Please edit ${agentFile} to include the following fields:`,
           '  "name": "kiro"',
           '  "description": "..."',
           '  "prompt": "..."',
-          "可參考 templates/kiro-agent.json 範本。",
+          "Refer to templates/kiro-agent.json for a template.",
         ].join("\n  "),
       };
     }
 
-    return { name, passed: true, message: `✓ agent 設定檔格式正確 (${agentFile})` };
+    return { name, passed: true, message: `✓ Agent config file format is correct (${agentFile})` };
   } catch {
     return {
       name,
       passed: false,
-      message: `✗ agent 設定檔 JSON 格式錯誤：${agentFile}`,
+      message: `✗ Agent config file has invalid JSON format: ${agentFile}`,
       fix: [
-        "設定檔不是有效的 JSON 格式，請檢查語法。",
-        "可參考 templates/kiro-agent.json 範本重新建立。",
+        "The config file is not valid JSON. Please check the syntax.",
+        "Refer to templates/kiro-agent.json to recreate the file.",
       ].join("\n  "),
     };
   }
 }
 
-/** 5. ACP Wrapper 可執行 */
+/** 5. ACP Wrapper is executable */
 async function checkWrapperExecutable(): Promise<CheckResult> {
-  const name = "ACP Wrapper 可執行";
+  const name = "ACP Wrapper executable";
 
   if (!existsSync(WRAPPER_DIST)) {
     return {
       name,
       passed: false,
-      message: `✗ ACP Wrapper 編譯檔不存在：${WRAPPER_DIST}`,
+      message: `✗ ACP Wrapper compiled file does not exist: ${WRAPPER_DIST}`,
       fix: [
-        "ACP Wrapper 尚未編譯，請執行：",
+        "ACP Wrapper has not been compiled. Run:",
         "  npm run build",
-        "確認編譯成功後重新執行驗證。",
+        "After successful compilation, re-run validation.",
       ].join("\n  "),
     };
   }
 
-  // 檢查檔案是否可讀取
+  // Check if file is readable
   try {
     accessSync(WRAPPER_DIST, constants.R_OK);
   } catch {
     return {
       name,
       passed: false,
-      message: `✗ ACP Wrapper 檔案無法讀取：${WRAPPER_DIST}`,
+      message: `✗ ACP Wrapper file is not readable: ${WRAPPER_DIST}`,
       fix: [
-        "檔案權限不正確，請執行：",
+        "File permissions are incorrect. Run:",
         `  chmod +r ${WRAPPER_DIST}`,
       ].join("\n  "),
     };
   }
 
-  return { name, passed: true, message: `✓ ACP Wrapper 已編譯且可存取 (${WRAPPER_DIST})` };
+  return { name, passed: true, message: `✓ ACP Wrapper compiled and accessible (${WRAPPER_DIST})` };
 }
 
-/** 6. 環境變數已設定 */
+/** 6. Environment variables are set */
 async function checkEnvVars(): Promise<CheckResult> {
-  const name = "環境變數設定";
+  const name = "Environment variable configuration";
 
   if (!existsSync(ENV_FILE)) {
     return {
       name,
       passed: false,
-      message: "✗ .env 檔案不存在",
+      message: "✗ .env file does not exist",
       fix: [
-        "請從範本建立 .env 檔案：",
+        "Create the .env file from the template:",
         "  cp .env.example .env",
-        "然後依需求修改設定值。",
-        "或執行安裝腳本自動產生：npm run install-skill",
+        "Then modify the settings as needed.",
+        "Or run the install script to auto-generate: npm run install-skill",
       ].join("\n  "),
     };
   }
 
-  // 檢查 .env 是否包含基本設定
+  // Check if .env contains basic settings
   try {
     const content = readFileSync(ENV_FILE, "utf-8");
     const definedKeys: string[] = [];
@@ -305,74 +305,74 @@ async function checkEnvVars(): Promise<CheckResult> {
       return {
         name,
         passed: false,
-        message: `✗ .env 缺少以下環境變數：${missingKeys.join(", ")}`,
+        message: `✗ .env is missing the following environment variables: ${missingKeys.join(", ")}`,
         fix: [
-          "請參考 .env.example 補齊缺少的環境變數。",
-          `缺少的變數：${missingKeys.join(", ")}`,
-          "這些變數皆有預設值，但建議明確設定以避免混淆。",
+          "Refer to .env.example to add the missing environment variables.",
+          `Missing variables: ${missingKeys.join(", ")}`,
+          "These variables all have defaults, but explicit configuration is recommended to avoid confusion.",
         ].join("\n  "),
       };
     }
 
-    return { name, passed: true, message: "✓ .env 檔案已設定且包含所有必要變數" };
+    return { name, passed: true, message: "✓ .env file is configured with all required variables" };
   } catch {
     return {
       name,
       passed: false,
-      message: "✗ 無法讀取 .env 檔案",
-      fix: "請確認 .env 檔案的讀取權限，或重新建立：cp .env.example .env",
+      message: "✗ Cannot read .env file",
+      fix: "Please check .env file read permissions, or recreate: cp .env.example .env",
     };
   }
 }
 
-/** 7. ACP device pairing 狀態 */
+/** 7. ACP device pairing status */
 async function checkAcpPairing(): Promise<CheckResult> {
   const name = "ACP device pairing";
 
-  // 先確認 openclaw 可用，否則無法檢查 pairing
+  // First confirm openclaw is available, otherwise cannot check pairing
   const openclawAvailable = await tryExec("openclaw", ["--version"]);
   if (openclawAvailable === null) {
     return {
       name,
       passed: false,
-      message: "✗ 無法檢查 pairing 狀態（openclaw CLI 不可用）",
-      fix: "請先安裝 openclaw CLI，再重新執行驗證。",
+      message: "✗ Cannot check pairing status (openclaw CLI unavailable)",
+      fix: "Please install openclaw CLI first, then re-run validation.",
     };
   }
 
-  // 嘗試透過 openclaw acp 檢查 pairing 狀態
+  // Try checking pairing status via openclaw acp
   const pairingResult = await tryExec("openclaw", ["acp", "status"]);
   if (pairingResult !== null) {
-    // 若指令成功執行，檢查輸出是否包含 paired/active 等正面指標
+    // If command succeeds, check output for positive indicators
     const lower = pairingResult.toLowerCase();
     if (lower.includes("paired") || lower.includes("active") || lower.includes("connected")) {
-      return { name, passed: true, message: "✓ ACP device pairing 已完成" };
+      return { name, passed: true, message: "✓ ACP device pairing complete" };
     }
   }
 
-  // 若 `openclaw acp status` 不可用，嘗試 `openclaw acp pair --status`
+  // If `openclaw acp status` is unavailable, try `openclaw acp pair --status`
   const pairStatus = await tryExec("openclaw", ["acp", "pair", "--status"]);
   if (pairStatus !== null) {
     const lower = pairStatus.toLowerCase();
     if (lower.includes("paired") || lower.includes("active") || lower.includes("approved")) {
-      return { name, passed: true, message: "✓ ACP device pairing 已完成" };
+      return { name, passed: true, message: "✓ ACP device pairing complete" };
     }
   }
 
   return {
     name,
     passed: false,
-    message: "✗ ACP device pairing 未完成或無法確認狀態",
+    message: "✗ ACP device pairing not complete or status cannot be confirmed",
     fix: [
-      "請執行以下指令完成 device pairing：",
+      "Run the following command to complete device pairing:",
       "  openclaw acp pair",
-      "完成後依提示 approve device 並確認所需 scopes。",
-      "詳細步驟請參閱 INSTALL.md 的 ACP Device Pairing 章節。",
+      "After completion, follow the prompts to approve the device and confirm required scopes.",
+      "For detailed steps, see the ACP Device Pairing section in INSTALL.md.",
     ].join("\n  "),
   };
 }
 
-// ── 主流程 ────────────────────────────────────────────────────
+// ── Main flow ─────────────────────────────────────────────────
 
 async function main(): Promise<void> {
   console.log("");
@@ -397,13 +397,13 @@ async function main(): Promise<void> {
     const result = await check();
     results.push(result);
 
-    // 輸出每個檢查結果
+    // Output each check result
     if (result.passed) {
       console.log(`  ${result.message}`);
     } else {
       console.log(`  ${result.message}`);
       if (result.fix) {
-        console.log(`    修復建議：`);
+        console.log(`    Fix suggestion:`);
         for (const line of result.fix.split("\n")) {
           console.log(`    ${line}`);
         }
@@ -412,18 +412,18 @@ async function main(): Promise<void> {
     console.log("");
   }
 
-  // 輸出摘要
+  // Output summary
   const passedCount = results.filter((r) => r.passed).length;
   const failedCount = results.length - passedCount;
   const allPassed = failedCount === 0;
 
   console.log("───────────────────────────────────────────────");
   if (allPassed) {
-    console.log(`  ✅ 全部通過 (${passedCount}/${results.length})`);
-    console.log("  所有元件運作正常，可以開始使用 /kiro 指令。");
+    console.log(`  ✅ All passed (${passedCount}/${results.length})`);
+    console.log("  All components are working properly. You can start using the /kiro command.");
   } else {
-    console.log(`  ⚠️  ${failedCount} 項檢查未通過 (${passedCount}/${results.length} 通過)`);
-    console.log("  請依上方修復建議逐一處理後，重新執行 npm run validate。");
+    console.log(`  ⚠️  ${failedCount} check(s) failed (${passedCount}/${results.length} passed)`);
+    console.log("  Please follow the fix suggestions above, then re-run npm run validate.");
   }
   console.log("───────────────────────────────────────────────");
   console.log("");
@@ -432,6 +432,6 @@ async function main(): Promise<void> {
 }
 
 main().catch((err) => {
-  console.error("\n❌ Health Checker 發生未預期的錯誤：", err instanceof Error ? err.message : String(err));
+  console.error("\n❌ Unexpected Health Checker error:", err instanceof Error ? err.message : String(err));
   process.exit(1);
 });
