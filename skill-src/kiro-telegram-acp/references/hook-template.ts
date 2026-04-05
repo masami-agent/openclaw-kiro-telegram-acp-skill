@@ -2,6 +2,8 @@ import { readFileSync } from "fs";
 import { execFile } from "child_process";
 
 const COMMAND_PREFIX = "/kiro";
+const WRAPPER_CMD = process.env.KIRO_WRAPPER_CMD || "kiro-acp-ask";
+const AGENT_NAME = process.env.KIRO_AGENT_NAME || "kiro_default";
 const AGENT_TIMEOUT_MS = Number(process.env.KIRO_TIMEOUT_MS || 120000);
 const ALLOWED_CHAT_IDS = (process.env.ALLOWED_CHAT_IDS || "")
   .split(",")
@@ -11,11 +13,15 @@ const ALLOWED_CHAT_IDS = (process.env.ALLOWED_CHAT_IDS || "")
 // Track sessions with pending /kiro commands for message:sending cancellation
 const pendingKiroSessions = new Set<string>();
 
+let cachedBotToken: string | undefined;
+
 function getBotToken(): string {
+  if (cachedBotToken) return cachedBotToken;
   const cfg = JSON.parse(
     readFileSync(process.env.HOME + "/.openclaw/openclaw.json", "utf8")
   );
-  return cfg.channels.telegram.botToken;
+  cachedBotToken = cfg.channels.telegram.botToken;
+  return cachedBotToken!;
 }
 
 async function sendTelegram(chatId: string, text: string) {
@@ -32,28 +38,26 @@ async function sendTelegram(chatId: string, text: string) {
 }
 
 /**
- * Query Kiro via `openclaw agent` CLI (async, non-blocking).
- * Uses a dynamic session ID to avoid stale session state.
+ * Query Kiro via the local ACP wrapper command (async, non-blocking).
+ *
+ * The wrapper (default: `kiro-acp-ask`) speaks ACP over stdio to
+ * `openclaw acp` and returns the final assistant text on stdout.
+ * See docs/wrapper-contract.md for the expected contract.
  */
 function queryKiro(prompt: string): Promise<string> {
   return new Promise((resolve, reject) => {
     execFile(
-      "openclaw",
-      ["agent", "--session-id", `kiro-${Date.now()}`, "--message", prompt, "--json"],
+      WRAPPER_CMD,
+      [AGENT_NAME, prompt],
       { timeout: AGENT_TIMEOUT_MS, encoding: "utf8" },
       (err, stdout, stderr) => {
         if (err) {
-          reject(err);
+          reject(new Error(stderr?.slice(0, 200) || err.message));
           return;
         }
-        try {
-          const parsed = JSON.parse(stdout);
-          const text = parsed?.result?.payloads?.[0]?.text;
-          if (text) resolve(text);
-          else reject(new Error("Empty response from Kiro"));
-        } catch {
-          reject(new Error(stderr?.slice(0, 200) || "Failed to parse agent response"));
-        }
+        const text = stdout.trim();
+        if (text) resolve(text);
+        else reject(new Error(stderr?.slice(0, 200) || "Empty response from Kiro"));
       }
     );
   });

@@ -40,7 +40,7 @@ That means a Telegram hook cannot treat `openclaw acp` like `curl` or `openclaw 
 - `kiro-telegram-acp.skill` — packaged OpenClaw skill artifact
 - `skill-src/` — source of the skill
 - `examples/hook-template.ts` — reusable hook template showing how to call a local wrapper command from OpenClaw
-- `examples/kiro-acp-ask.js` — wrapper contract stub for one-shot ACP requests
+- `examples/kiro-acp-ask.js` — minimal ACP wrapper for one-shot requests via `openclaw acp` stdio bridge
 - `examples/kiro-agent-template.json` — sample Kiro agent config
 - `docs/architecture.md` — short architecture walkthrough
 - `docs/deployment.md` — deployment steps and troubleshooting notes
@@ -207,11 +207,20 @@ Check Telegram bot token loading and the `sendMessage` API response body.
 
 ```text
 .
+├── .gitignore
+├── package.json
+├── tsconfig.json
 ├── kiro-telegram-acp.skill
 ├── skill-src/
 │   └── kiro-telegram-acp/
 │       ├── SKILL.md
 │       └── references/
+│           ├── architecture.md
+│           ├── deployment.md
+│           ├── wrapper-contract.md
+│           ├── hook-template.ts
+│           ├── kiro-acp-ask.js
+│           └── kiro-agent-template.json
 ├── examples/
 │   ├── hook-template.ts
 │   ├── kiro-acp-ask.js

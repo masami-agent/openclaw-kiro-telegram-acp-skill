@@ -1,0 +1,16 @@
+{
+  "name": "openclaw-kiro-telegram-acp-skill",
+  "version": "0.1.0",
+  "description": "Route Telegram /kiro commands through OpenClaw to a Kiro agent via ACP",
+  "license": "MIT",
+  "engines": {
+    "node": ">=18"
+  },
+  "scripts": {
+    "build": "tsc",
+    "check": "tsc --noEmit"
+  },
+  "devDependencies": {
+    "typescript": "^5.4.0"
+  }
+}
