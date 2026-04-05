@@ -1,129 +1,349 @@
 #!/usr/bin/env node
 /**
- * Minimal ACP wrapper for the Telegram /kiro hook.
+ * ACP Wrapper — 透過 stdio 與 `openclaw acp` bridge 通訊的 ACP 客戶端。
  *
- * Usage:
- *   kiro-acp-ask <agent-name> <prompt...>
- *
- * Spawns `openclaw acp` as a stdio JSON-RPC bridge, sends an ACP
- * initialize + prompt request, collects the final assistant text,
- * and prints it to stdout.
+ * 程式化使用：import { acpAsk } from "./kiro-acp-ask.js"
+ * CLI 使用：kiro-acp-ask <agent> <prompt> [--session-id <id>]
  *
  * Exit codes:
- *   0 -> success, stdout contains reply text
- *   1 -> usage/config error
- *   2 -> ACP transport/session error
- *   3 -> timeout
+ *   0 = 成功
+ *   1 = usage error
+ *   2 = 連線失敗
+ *   3 = timeout
+ *
+ * 所有診斷訊息輸出至 stderr，僅最終回覆文字輸出至 stdout。
  */
-
-const { spawn } = require("child_process");
-
-const [, , agent, ...promptParts] = process.argv;
-const prompt = promptParts.join(" ").trim();
-
-if (!agent || !prompt) {
-  console.error("Usage: kiro-acp-ask <agent-name> <prompt...>");
-  process.exit(1);
+import { spawn } from "node:child_process";
+// ============================================================
+// JSON-RPC helpers（exported for testing）
+// ============================================================
+let _nextId = 1;
+/** 重設 JSON-RPC request ID 計數器（僅供測試使用）。 */
+export function resetIdCounter() {
+    _nextId = 1;
 }
-
-const TIMEOUT_MS = Number(process.env.KIRO_ACP_TIMEOUT_MS || 120000);
-let reqId = 1;
-
-function jsonRpcRequest(method, params) {
-  return JSON.stringify({ jsonrpc: "2.0", id: reqId++, method, params });
+/** 建立 JSON-RPC 2.0 request 物件。 */
+export function buildJsonRpcRequest(method, params) {
+    const req = {
+        jsonrpc: "2.0",
+        id: _nextId++,
+        method,
+    };
+    if (params !== undefined) {
+        req.params = params;
+    }
+    return req;
 }
-
-const child = spawn("openclaw", ["acp"], { stdio: ["pipe", "pipe", "pipe"] });
-
-let buffer = "";
-let done = false;
-
-const timer = setTimeout(() => {
-  if (!done) {
-    console.error("Timeout waiting for ACP response");
-    child.kill();
-    process.exit(3);
-  }
-}, TIMEOUT_MS);
-
-child.stdout.on("data", (chunk) => {
-  buffer += chunk.toString();
-  // Process newline-delimited JSON-RPC responses
-  let nl;
-  while ((nl = buffer.indexOf("\n")) !== -1) {
-    const line = buffer.slice(0, nl).trim();
-    buffer = buffer.slice(nl + 1);
-    if (!line) continue;
+/** 將 JSON-RPC request 序列化為可寫入 stdin 的字串（含換行）。 */
+export function serializeRequest(req) {
+    return JSON.stringify(req) + "\n";
+}
+/**
+ * 從原始 buffer 字串中解析出所有完整的 JSON-RPC response。
+ * 回傳 [已解析的 responses, 剩餘未完成的 buffer]。
+ */
+export function parseResponses(buffer) {
+    const responses = [];
+    let remaining = buffer;
+    while (true) {
+        const newlineIdx = remaining.indexOf("\n");
+        if (newlineIdx === -1)
+            break;
+        const line = remaining.slice(0, newlineIdx).trim();
+        remaining = remaining.slice(newlineIdx + 1);
+        if (line.length === 0)
+            continue;
+        try {
+            const parsed = JSON.parse(line);
+            if (parsed.jsonrpc === "2.0" && typeof parsed.id === "number") {
+                responses.push(parsed);
+            }
+        }
+        catch {
+            // 非 JSON 行（可能是 stderr 混入），忽略
+        }
+    }
+    return [responses, remaining];
+}
+/**
+ * 判斷 JSON-RPC response 是否為 session 不存在錯誤。
+ * 用於 bindSession fallback 邏輯。
+ */
+export function isSessionNotFoundError(response) {
+    if (!response.error)
+        return false;
+    const msg = response.error.message?.toLowerCase() ?? "";
+    const data = typeof response.error.data === "string"
+        ? response.error.data.toLowerCase()
+        : "";
+    return (msg.includes("session not found") ||
+        msg.includes("session does not exist") ||
+        msg.includes("no such session") ||
+        msg.includes("invalid session") ||
+        data.includes("session not found") ||
+        data.includes("session does not exist"));
+}
+/**
+ * 產生 session 建立所需的 JSON-RPC request 序列。
+ *
+ * - 若提供 sessionId → 先嘗試 bindSession
+ * - 否則 → 直接 createSession
+ *
+ * 回傳 [requests, expectedMethod]，其中 expectedMethod 為
+ * "acp/bindSession" 或 "acp/createSession"。
+ */
+export function buildSessionRequests(agentName, sessionId) {
+    if (sessionId) {
+        const req = buildJsonRpcRequest("acp/bindSession", {
+            agentName,
+            sessionId,
+        });
+        return [req, "acp/bindSession"];
+    }
+    const req = buildJsonRpcRequest("acp/createSession", { agentName });
+    return [req, "acp/createSession"];
+}
+/** 建立 fallback createSession request（bindSession 失敗時使用）。 */
+export function buildFallbackCreateRequest(agentName) {
+    return buildJsonRpcRequest("acp/createSession", { agentName });
+}
+/**
+ * 處理 session 回應，判斷是否需要 fallback。
+ *
+ * 回傳：
+ * - { action: "ok", sessionId } — session 建立成功
+ * - { action: "fallback" } — bindSession 失敗，需 fallback 至 createSession
+ * - { action: "error", message } — 不可恢復的錯誤
+ */
+export function handleSessionResponse(response, method) {
+    if (response.error) {
+        if (method === "acp/bindSession" && isSessionNotFoundError(response)) {
+            return { action: "fallback" };
+        }
+        return {
+            action: "error",
+            message: response.error.message ?? "Unknown session error",
+        };
+    }
+    const result = response.result;
+    const sessionId = result?.sessionId ?? result?.session_id ?? "";
+    if (!sessionId) {
+        return { action: "error", message: "Session response missing sessionId" };
+    }
+    return { action: "ok", sessionId };
+}
+/**
+ * 從 sendMessage response 中提取回覆文字。
+ */
+export function extractReplyText(response) {
+    if (response.error) {
+        throw new Error(response.error.message ?? "sendMessage returned an error");
+    }
+    const result = response.result;
+    // 嘗試多種常見欄位名稱
+    const text = result?.text ??
+        result?.content ??
+        result?.message ??
+        "";
+    return text;
+}
+// ============================================================
+// 核心 acpAsk 函式
+// ============================================================
+export async function acpAsk(options) {
+    const { agentName, prompt, timeoutMs, sessionId } = options;
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), timeoutMs);
+    let child;
     try {
-      const msg = JSON.parse(line);
-      handleMessage(msg);
-    } catch {
-      // skip non-JSON lines
+        child = spawn("openclaw", ["acp"], {
+            stdio: ["pipe", "pipe", "pipe"],
+            signal: controller.signal,
+        });
+        // 收集 stderr 供診斷
+        let stderrBuf = "";
+        child.stderr?.on("data", (chunk) => {
+            stderrBuf += chunk.toString();
+        });
+        // 建立 response 收集機制
+        let stdoutBuf = "";
+        const pendingResolvers = new Map();
+        child.stdout?.on("data", (chunk) => {
+            stdoutBuf += chunk.toString();
+            const [responses, remaining] = parseResponses(stdoutBuf);
+            stdoutBuf = remaining;
+            for (const resp of responses) {
+                const pending = pendingResolvers.get(resp.id);
+                if (pending) {
+                    pendingResolvers.delete(resp.id);
+                    pending.resolve(resp);
+                }
+            }
+        });
+        const sendAndWait = (req) => {
+            return new Promise((resolve, reject) => {
+                pendingResolvers.set(req.id, { resolve, reject });
+                const data = serializeRequest(req);
+                child.stdin.write(data, (err) => {
+                    if (err) {
+                        pendingResolvers.delete(req.id);
+                        reject(err);
+                    }
+                });
+            });
+        };
+        // 監聽子程序異常退出
+        const exitPromise = new Promise((_, reject) => {
+            child.on("error", (err) => {
+                reject(new Error(`ACP bridge error: ${err.message}`));
+            });
+            child.on("close", (code) => {
+                if (code !== 0 && code !== null) {
+                    reject(new Error(`ACP bridge exited with code ${code}${stderrBuf ? `: ${stderrBuf.trim()}` : ""}`));
+                }
+            });
+        });
+        const raceWithExit = (p) => Promise.race([p, exitPromise]);
+        // Step 1: initialize
+        process.stderr.write("[acp-wrapper] Sending initialize...\n");
+        const initReq = buildJsonRpcRequest("initialize", {
+            protocolVersion: "2024-11-05",
+            capabilities: {},
+            clientInfo: { name: "kiro-acp-ask", version: "0.1.0" },
+        });
+        const initResp = await raceWithExit(sendAndWait(initReq));
+        if (initResp.error) {
+            throw new Error(`initialize failed: ${initResp.error.message}`);
+        }
+        process.stderr.write("[acp-wrapper] Initialized.\n");
+        // Step 2: create or bind session
+        let actualSessionId;
+        const [sessionReq, sessionMethod] = buildSessionRequests(agentName, sessionId);
+        process.stderr.write(`[acp-wrapper] ${sessionMethod}${sessionId ? ` (sessionId=${sessionId})` : ""}...\n`);
+        const sessionResp = await raceWithExit(sendAndWait(sessionReq));
+        const sessionResult = handleSessionResponse(sessionResp, sessionMethod);
+        if (sessionResult.action === "ok") {
+            actualSessionId = sessionResult.sessionId;
+        }
+        else if (sessionResult.action === "fallback") {
+            // bindSession 失敗，fallback 至 createSession
+            process.stderr.write("[acp-wrapper] bindSession failed (session not found), falling back to createSession...\n");
+            const fallbackReq = buildFallbackCreateRequest(agentName);
+            const fallbackResp = await raceWithExit(sendAndWait(fallbackReq));
+            const fallbackResult = handleSessionResponse(fallbackResp, "acp/createSession");
+            if (fallbackResult.action === "ok") {
+                actualSessionId = fallbackResult.sessionId;
+            }
+            else if (fallbackResult.action === "error") {
+                throw new Error(`createSession (fallback) failed: ${fallbackResult.message}`);
+            }
+            else {
+                throw new Error("Unexpected fallback result during createSession");
+            }
+        }
+        else {
+            throw new Error(`${sessionMethod} failed: ${sessionResult.message}`);
+        }
+        process.stderr.write(`[acp-wrapper] Session ready: ${actualSessionId}\n`);
+        // Step 3: sendMessage
+        process.stderr.write("[acp-wrapper] Sending message...\n");
+        const msgReq = buildJsonRpcRequest("acp/sendMessage", {
+            sessionId: actualSessionId,
+            message: { role: "user", content: prompt },
+        });
+        const msgResp = await raceWithExit(sendAndWait(msgReq));
+        const replyText = extractReplyText(msgResp);
+        process.stderr.write("[acp-wrapper] Reply received.\n");
+        // Step 4: 嘗試 graceful shutdown（不等待回應）
+        try {
+            const shutdownReq = buildJsonRpcRequest("shutdown");
+            child.stdin?.write(serializeRequest(shutdownReq));
+            child.stdin?.end();
+        }
+        catch {
+            // shutdown 失敗不影響結果
+        }
+        return { text: replyText, sessionId: actualSessionId };
     }
-  }
-});
-
-child.stderr.on("data", (chunk) => {
-  // Forward ACP stderr as diagnostic
-  process.stderr.write(chunk);
-});
-
-child.on("close", (code) => {
-  clearTimeout(timer);
-  if (!done) {
-    console.error(`openclaw acp exited with code ${code} before returning a result`);
-    process.exit(2);
-  }
-});
-
-let sessionId = null;
-
-function handleMessage(msg) {
-  if (done) return;
-
-  // Response to initialize
-  if (msg.id === 1 && msg.result) {
-    sessionId = `kiro-${Date.now()}`;
-    const req = jsonRpcRequest("acp/send", {
-      sessionId,
-      agent,
-      message: { role: "user", content: prompt },
-    });
-    child.stdin.write(req + "\n");
-    return;
-  }
-
-  // Response to acp/send — extract assistant text
-  if (msg.id === 2 && msg.result) {
-    const text =
-      msg.result?.text ||
-      msg.result?.content ||
-      msg.result?.message?.content ||
-      (typeof msg.result === "string" ? msg.result : null);
-    if (text) {
-      done = true;
-      clearTimeout(timer);
-      process.stdout.write(text);
-      child.stdin.end();
-    } else {
-      done = true;
-      clearTimeout(timer);
-      console.error("Empty response from ACP agent");
-      child.stdin.end();
-      process.exit(2);
+    catch (err) {
+        // 區分 timeout vs 其他錯誤
+        if (controller.signal.aborted) {
+            const timeoutErr = new Error("ACP request timed out");
+            timeoutErr.code = "TIMEOUT";
+            throw timeoutErr;
+        }
+        throw err;
     }
-    return;
-  }
-
-  // JSON-RPC error
-  if (msg.error) {
-    done = true;
-    clearTimeout(timer);
-    console.error(`ACP error: ${msg.error.message || JSON.stringify(msg.error)}`);
-    child.stdin.end();
-    process.exit(2);
-  }
+    finally {
+        clearTimeout(timer);
+        // 確保子程序被清理
+        if (child && !child.killed) {
+            try {
+                child.kill("SIGTERM");
+            }
+            catch {
+                // ignore
+            }
+        }
+    }
 }
-
-// Start: send initialize
-child.stdin.write(jsonRpcRequest("initialize", {}) + "\n");
+// ============================================================
+// CLI entry point
+// ============================================================
+/** 解析 CLI 參數。 */
+export function parseCLIArgs(argv) {
+    // argv[0] = node, argv[1] = script path
+    const args = argv.slice(2);
+    if (args.length < 2)
+        return null;
+    let sessionId;
+    const positional = [];
+    for (let i = 0; i < args.length; i++) {
+        if (args[i] === "--session-id" && i + 1 < args.length) {
+            sessionId = args[++i];
+        }
+        else {
+            positional.push(args[i]);
+        }
+    }
+    if (positional.length < 2)
+        return null;
+    const agentName = positional[0];
+    const prompt = positional.slice(1).join(" ").trim();
+    if (!agentName || !prompt)
+        return null;
+    return { agentName, prompt, sessionId };
+}
+/** CLI main — 僅在直接執行時運行。 */
+async function main() {
+    const parsed = parseCLIArgs(process.argv);
+    if (!parsed) {
+        process.stderr.write("Usage: kiro-acp-ask <agent> <prompt> [--session-id <id>]\n");
+        process.exit(1);
+    }
+    const { agentName, prompt, sessionId } = parsed;
+    const timeoutMs = parseInt(process.env.KIRO_TIMEOUT_MS ?? "120000", 10);
+    try {
+        const result = await acpAsk({ agentName, prompt, timeoutMs, sessionId });
+        // 僅將最終回覆文字輸出至 stdout
+        process.stdout.write(result.text);
+    }
+    catch (err) {
+        const error = err;
+        if (error.code === "TIMEOUT") {
+            process.stderr.write(`[acp-wrapper] Timeout after ${timeoutMs}ms\n`);
+            process.exit(3);
+        }
+        // 連線失敗或其他錯誤
+        process.stderr.write(`[acp-wrapper] Error: ${error.message ?? String(err)}\n`);
+        process.exit(2);
+    }
+}
+// 偵測是否為直接執行（ESM 環境）
+const isDirectRun = process.argv[1] &&
+    (process.argv[1].endsWith("kiro-acp-ask.js") ||
+        process.argv[1].endsWith("kiro-acp-ask.ts"));
+if (isDirectRun) {
+    main();
+}
+//# sourceMappingURL=kiro-acp-ask.js.map
