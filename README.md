@@ -35,6 +35,12 @@ npm run install-skill
 npm run validate
 ```
 
+若你只是 clone 下來做開發或跑 CI（尚未安裝到 `~/.openclaw/workspace`），可使用 dev 模式，跳過 workspace/安裝檢查：
+
+```bash
+npm run validate -- --mode=dev
+```
+
 ## 相容性說明
 
 本專案針對 OpenClaw `2026.4.2` 開發，使用 `openclaw agent --message --json` 進行 one-shot agent 呼叫。
