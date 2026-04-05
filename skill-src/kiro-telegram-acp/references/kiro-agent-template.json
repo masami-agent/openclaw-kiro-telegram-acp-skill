@@ -3,7 +3,7 @@
   "description": "Default Kiro agent for Telegram relay usage",
   "prompt": "You are a helpful assistant. Always respond in English.",
   "resources": [
-    "file:///ABSOLUTE/PATH/TO/your-kb-file.md"
+    "file:///home/YOUR_USER/.openclaw/workspace/kiro-settings/kb-preferences.md"
   ],
   "useLegacyMcpJson": true
 }
