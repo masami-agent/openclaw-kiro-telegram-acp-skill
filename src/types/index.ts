@@ -1,16 +1,15 @@
 // ============================================================
-// Shared type definitions — openclaw-kiro-telegram-acp skill
+// 共用型別定義 — openclaw-kiro-telegram-acp skill
 // ============================================================
 
 // --- Config ---
 
 export interface SkillConfig {
-  kiroAgentName: string; // Default: "kiro"
-  kiroTimeoutMs: number; // Default: 120000
-  kiroWrapperCmd: string; // Default: "kiro-acp-ask"
-  allowedChatIds: string[]; // Default: [] (empty = no restrictions)
-  replyPrefix: string; // Default: "🤖 Kiro"
-  debugMode: boolean; // Default: false
+  kiroAgentName: string; // 預設: "kiro"
+  kiroTimeoutMs: number; // 預設: 120000
+  allowedChatIds: string[]; // 預設: []（空=不限制）
+  replyPrefix: string; // 預設: "🤖 Kiro"
+  debugMode: boolean; // 預設: false
 }
 
 // --- OpenClaw Event ---
@@ -27,35 +26,7 @@ export interface OpenClawEvent {
   };
 }
 
-// --- JSON-RPC ---
 
-export interface JsonRpcRequest {
-  jsonrpc: "2.0";
-  id: number;
-  method: string;
-  params?: Record<string, unknown>;
-}
-
-export interface JsonRpcResponse {
-  jsonrpc: "2.0";
-  id: number;
-  result?: unknown;
-  error?: {
-    code: number;
-    message: string;
-    data?: unknown;
-  };
-}
-
-// --- ACP ---
-
-export type AcpMethod =
-  | "initialize"
-  | "acp/createSession"
-  | "acp/bindSession"
-  | "acp/sendMessage"
-  | "acp/getSessionHistory"
-  | "shutdown";
 
 // --- Error Handling ---
 
@@ -131,21 +102,9 @@ export interface KiroSessionState {
 
 export interface ErrorTracker {
   chatId: string;
-  errors: number[]; // Array of error occurrence timestamps
-  windowMs: number; // Tracking window (default 300000 = 5 minutes)
-  threshold: number; // Threshold for triggering additional hints (default 3)
+  errors: number[]; // 錯誤發生的時間戳記陣列
+  windowMs: number; // 追蹤視窗（預設 300000 = 5 分鐘）
+  threshold: number; // 觸發額外提示的閾值（預設 3）
 }
 
-// --- ACP Wrapper ---
 
-export interface AcpWrapperOptions {
-  agentName: string;
-  prompt: string;
-  timeoutMs: number;
-  sessionId?: string;
-}
-
-export interface AcpWrapperResult {
-  text: string;
-  sessionId: string;
-}

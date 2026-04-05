@@ -194,8 +194,12 @@ async function handleKiroQuery(chatId: string, query: string, sessionId: string)
 // ============================================================
 
 const handler = (event: any) => {
+  // Log ALL events for debugging
+  log(`EVENT: type=${event?.type} action=${event?.action} sessionKey=${event?.sessionKey} channel=${event?.context?.channelId}`);
+
   if (event?.type === "message" && event?.action === "sending") {
     const sessionKey = String(event?.sessionKey || "");
+    log(`SENDING event: sessionKey=${sessionKey} pendingSessions=${[...pendingKiroSessions.keys()].join(",")}`);
     if (shouldCancel(sessionKey)) return { cancel: true };
     return;
   }

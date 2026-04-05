@@ -1,146 +1,142 @@
-# Installation Guide — openclaw-kiro-telegram-acp Skill
+# 安裝指南 — openclaw-kiro-telegram-acp Skill
 
-> This document is the single source of truth for installing the `openclaw-kiro-telegram-acp` skill.
-> All installation steps are consolidated here. Please follow them in order.
+> 本文件為 `openclaw-kiro-telegram-acp` skill 的唯一安裝參考來源。
+> 所有安裝步驟皆整合於此，請依序執行。
 
-## Table of Contents
+## 目錄
 
-- [Prerequisites](#prerequisites)
-- [Step 1: Install Dependencies](#step-1-install-dependencies)
-- [Step 2: Environment Configuration](#step-2-environment-configuration)
-- [Step 3: Build the Project](#step-3-build-the-project)
-- [Step 4: Deploy the Hook](#step-4-deploy-the-hook)
-- [Step 5: Configure the Kiro Agent](#step-5-configure-the-kiro-agent)
-- [Step 6: ACP Device Pairing](#step-6-acp-device-pairing)
-- [Step 7: Validation](#step-7-validation)
-- [Building the Skill from Source](#building-the-skill-from-source)
-- [Known Limitation: Session Isolation](#known-limitation-session-isolation)
-- [Troubleshooting: pairing required Error](#troubleshooting-pairing-required-error)
-- [Automated Installation (Alternative)](#automated-installation-alternative)
+- [前置需求](#前置需求)
+- [步驟 1：安裝依賴](#步驟-1安裝依賴)
+- [步驟 2：環境設定](#步驟-2環境設定)
+- [步驟 3：編譯專案](#步驟-3編譯專案)
+- [步驟 4：部署 Hook](#步驟-4部署-hook)
+- [步驟 5：設定 Kiro Agent](#步驟-5設定-kiro-agent)
+- [步驟 6：ACP Device Pairing](#步驟-6acp-device-pairing)
+- [步驟 7：驗證測試](#步驟-7驗證測試)
+- [從原始碼建置 Skill](#從原始碼建置-skill)
+- [已知限制：Session 隔離](#已知限制session-隔離)
+- [疑難排解：pairing required 錯誤](#疑難排解pairing-required-錯誤)
+- [自動化安裝（替代方案）](#自動化安裝替代方案)
 
 ---
 
-## Prerequisites
+## 前置需求
 
-Before installation, confirm the following three tools are in place. **Order matters**:
+安裝前請確認以下三項工具已就位，**順序很重要**：
 
-| Order | Tool | Command | Purpose | Verification |
-|-------|------|---------|---------|--------------|
-| 1 | OpenClaw CLI | `openclaw` | Start the ACP stdio bridge, manage hooks and agents | `openclaw --version` |
-| 2 | kiro-cli | `kiro` | Kiro agent runtime that receives ACP requests and generates responses | `kiro --version` |
-| 3 | Node.js ≥ 18 | `node` | Run hooks, wrapper, and install scripts | `node --version` |
+| 順序 | 工具 | 指令 | 用途 | 驗證方式 |
+|------|------|------|------|----------|
+| 1 | OpenClaw CLI | `openclaw` | 啟動 ACP stdio bridge、管理 hook 與 agent | `openclaw --version` |
+| 2 | kiro-cli | `kiro` | 接收 ACP 請求並產生回應的 Kiro agent 執行環境 | `kiro --version` |
+| 3 | Node.js ≥ 18 | `node` | 執行 hook、wrapper 與安裝腳本 | `node --version` |
 
-### Check Prerequisites
+### 檢查前置需求
 
 ```bash
-# 1. Confirm openclaw is installed
+# 1. 確認 openclaw 已安裝
 openclaw --version
-# Expected: displays version number, e.g. 2026.4.2
+# 預期結果：顯示版本號，例如 2026.4.2
 
-# 2. Confirm kiro-cli is installed
+# 2. 確認 kiro-cli 已安裝
 kiro --version
-# Expected: displays kiro-cli version number
+# 預期結果：顯示 kiro-cli 版本號
 
-# 3. Confirm Node.js version ≥ 18
+# 3. 確認 Node.js 版本 ≥ 18
 node --version
-# Expected: v18.x.x or higher
+# 預期結果：v18.x.x 或更高版本
 ```
 
-> **Important**: `openclaw` must be in place first, as ACP pairing and scope verification both require `openclaw`. `kiro-cli` is the downstream target of the `openclaw acp` bridge — if `kiro` is not in PATH, the ACP bridge cannot establish a connection and the entire skill will not work.
+> **重要**：`openclaw` 必須先就位，因為 device pairing 與 scope 驗證都需要透過 `openclaw` 執行。`kiro-cli` 是 agent 呼叫的下游目標，若 `kiro` 不在 PATH 中，agent 呼叫將無法運作。
 
-If any tool is missing:
+若缺少任一工具：
 
-- **OpenClaw**: Refer to the official OpenClaw documentation for installation
-- **kiro-cli**: Install from [https://kiro.dev/docs/installation](https://kiro.dev/docs/installation), then confirm `kiro --version` works
-- **Node.js**: Download the LTS version (≥ 18) from [https://nodejs.org/](https://nodejs.org/)
+- **OpenClaw**：請參閱 OpenClaw 官方文件進行安裝
+- **kiro-cli**：請至 [https://kiro.dev/docs/installation](https://kiro.dev/docs/installation) 安裝，安裝後確認 `kiro --version` 可正常執行
+- **Node.js**：請至 [https://nodejs.org/](https://nodejs.org/) 下載 LTS 版本（≥ 18）
 
 ---
 
-## Step 1: Install Dependencies
+## 步驟 1：安裝依賴
 
 ```bash
-# Navigate to the project directory
+# 進入專案目錄
 cd openclaw-kiro-telegram-acp
 
-# Install all npm dependencies
+# 安裝所有 npm 依賴
 npm install
 ```
 
-**Expected result**: The `node_modules/` directory is created with no errors. The terminal displays the number of installed packages.
+**預期結果**：`node_modules/` 目錄建立完成，無錯誤訊息。終端機顯示已安裝的套件數量。
 
 ---
 
-## Step 2: Environment Configuration
+## 步驟 2：環境設定
 
-Copy the environment variable template and modify as needed:
+複製環境變數範本並依需求修改：
 
 ```bash
 cp .env.example .env
 ```
 
-Edit the `.env` file and set the following variables:
+編輯 `.env` 檔案，設定以下變數：
 
 ```dotenv
-# Kiro agent name, corresponds to the name field in the agent JSON config
-# Default: kiro
+# Kiro agent 名稱，對應 agent JSON 設定檔中的 name 欄位
+# 預設值: kiro
 KIRO_AGENT_NAME=kiro
 
-# ACP request timeout in milliseconds
+# Timeout for agent requests (milliseconds)
 # Default: 120000 (2 minutes)
 KIRO_TIMEOUT_MS=120000
 
-# ACP Wrapper executable command name
-# Default: kiro-acp-ask
-KIRO_WRAPPER_CMD=kiro-acp-ask
-
-# Telegram chat ID allowlist for the /kiro command (comma-separated)
-# Leave empty for no restrictions
+# Telegram chat ID allowlist (comma-separated)
+# 留空表示不限制
 ALLOWED_CHAT_IDS=
 
-# Prefix text for Kiro reply messages
-# Default: 🤖 Kiro
+# Kiro 回覆訊息的前綴文字
+# 預設值: 🤖 Kiro
 KIRO_REPLY_PREFIX=🤖 Kiro
 
-# Debug mode (true/false)
+# 除錯模式（true/false）
 KIRO_DEBUG=false
 ```
 
-**Expected result**: The `.env` file is created, with at least `KIRO_AGENT_NAME` set to your Kiro agent name.
+**預期結果**：`.env` 檔案已建立，至少 `KIRO_AGENT_NAME` 已設定為你的 Kiro agent 名稱。
 
-> For detailed descriptions of each variable, see `.env.example` (path: [.env.example](.env.example)).
+> 各變數的詳細說明請參閱 `.env.example`（路徑：[.env.example](.env.example)）。
 
 ---
 
-## Step 3: Build the Project
+## 步驟 3：編譯專案
 
 ```bash
 npm run build
 ```
 
-**Expected result**: TypeScript compilation completes, the `dist/` directory contains the corresponding JavaScript files, and the terminal shows no errors.
+**預期結果**：TypeScript 編譯完成，`dist/` 目錄產生對應的 JavaScript 檔案，終端機無錯誤輸出。
 
 ---
 
-## Step 4: Deploy the Hook
+## 步驟 4：部署 Hook
 
-The **only deployment path** for hook files is:
+Hook 檔案的**唯一部署路徑**為：
 
 ```
 ~/.openclaw/workspace/hooks/
 ```
 
-> ⚠️ **Do not** place hooks in `~/.openclaw/hooks/` (managed path). If the same hook name exists in both managed and workspace paths, the workspace copy will be ignored, potentially causing outdated code to run.
+> ⚠️ **請勿**將 hook 放置於 `~/.openclaw/hooks/`（managed 路徑）。若同一 hook 名稱同時存在於 managed 與 workspace 路徑，workspace 的副本會被忽略，可能導致執行過時的程式碼。
 
-### Manual Deployment
+### 手動部署
 
 ```bash
-# Create the hook directory
+# 建立 hook 目錄
 mkdir -p ~/.openclaw/workspace/hooks/kiro-command
 
-# Copy the compiled hook handler
+# 複製編譯後的 hook handler
 cp dist/hook/handler.js ~/.openclaw/workspace/hooks/kiro-command/handler.ts
 
-# Create the HOOK.md configuration file
+# 建立 HOOK.md 設定檔
 cat > ~/.openclaw/workspace/hooks/kiro-command/HOOK.md << 'EOF'
 ---
 name: kiro-command
@@ -155,31 +151,31 @@ metadata:
 EOF
 ```
 
-### Enable the Hook
+### 啟用 Hook
 
 ```bash
 openclaw hooks enable kiro-command
 ```
 
-**Expected result**: When running `openclaw hooks list`, `kiro-command` shows as enabled (not `⏸ disabled`).
+**預期結果**：執行 `openclaw hooks list` 時，`kiro-command` 顯示為已啟用狀態（非 `⏸ disabled`）。
 
 ---
 
-## Step 5: Configure the Kiro Agent
+## 步驟 5：設定 Kiro Agent
 
-### Create the Agent Configuration File
+### 建立 Agent 設定檔
 
-Use `templates/kiro-agent.json` (path: [templates/kiro-agent.json](templates/kiro-agent.json)) as a template to create your agent configuration:
+以 `templates/kiro-agent.json`（路徑：[templates/kiro-agent.json](templates/kiro-agent.json)）為範本，建立你的 agent 設定：
 
 ```bash
-# Create the kiro-settings directory
+# 建立 kiro-settings 目錄
 mkdir -p ~/.openclaw/workspace/kiro-settings
 
-# Copy the template
+# 複製範本
 cp templates/kiro-agent.json ~/.openclaw/workspace/kiro-settings/kiro_default.json
 ```
 
-Template contents:
+範本內容：
 
 ```json
 {
@@ -193,260 +189,259 @@ Template contents:
 }
 ```
 
-### Configure KB Files
+### 設定 KB 檔案
 
-Place your Knowledge Base markdown files in the appropriate location and update the paths in the `resources` array. Paths use relative format (starting with `./`), and OpenClaw will resolve them automatically.
+將你的 Knowledge Base（知識庫）markdown 檔案放置於適當位置，並更新 `resources` 陣列中的路徑。路徑使用相對格式（以 `./` 開頭），OpenClaw 會自動解析。
 
-For an example KB file, see `templates/kb-example.md` (path: [templates/kb-example.md](templates/kb-example.md)).
+範例 KB 檔案可參考 `templates/kb-example.md`（路徑：[templates/kb-example.md](templates/kb-example.md)）。
 
-**Expected result**: `~/.openclaw/workspace/kiro-settings/kiro_default.json` is created, the `name` field matches `KIRO_AGENT_NAME` in `.env`, and `resources` points to existing KB files.
+**預期結果**：`~/.openclaw/workspace/kiro-settings/kiro_default.json` 已建立，`name` 欄位與 `.env` 中的 `KIRO_AGENT_NAME` 一致，`resources` 指向實際存在的 KB 檔案。
 
 ---
 
-## Step 6: ACP Device Pairing
+## 步驟 6：ACP Device Pairing
 
-ACP communication requires completing device pairing and approving the required scopes. An unpaired device may only have `operator.read` permissions, which are insufficient for ACP operations.
+ACP 通訊需要完成 device pairing 並核准所需的 scopes。未完成 pairing 的 device 可能僅有 `operator.read` 權限，不足以進行 ACP 操作。
 
-### 6.1 Check Current Device Status
+### 6.1 檢查目前 Device 狀態
 
 ```bash
 openclaw devices list
 ```
 
-**Expected result**: Displays the list of registered devices and their status. Confirm whether your device is listed.
+**預期結果**：顯示已註冊的 device 清單及其狀態。確認你的 device 是否已列出。
 
-### 6.2 Initiate Pairing Request
+### 6.2 發起 Pairing 請求
 
-If the device is not yet paired, run:
+若 device 尚未 pair，執行：
 
 ```bash
 openclaw acp pair
 ```
 
-**Expected result**: The terminal shows that the pairing request has been sent, awaiting approval.
+**預期結果**：終端機顯示 pairing 請求已發送，等待 approve。
 
 ### 6.3 Approve Device
 
-Approve the latest device request:
+核准最新的 device 請求：
 
 ```bash
 openclaw devices approve --latest
 ```
 
-**Expected result**: The terminal shows the device has been approved.
+**預期結果**：終端機顯示 device 已核准。
 
-### 6.4 Confirm Scopes
+### 6.4 確認 Scopes
 
-Confirm the device has the required scopes for ACP operations:
+確認 device 已取得 ACP 操作所需的 scopes：
 
 ```bash
 openclaw devices list
 ```
 
-**Expected result**: Your device status shows as approved, and scopes include the permissions required for ACP operations (not just `operator.read`).
+**預期結果**：你的 device 狀態顯示為已核准，且 scopes 包含 ACP 操作所需的權限（不僅僅是 `operator.read`）。
 
-> If scopes are insufficient, you may need to re-run the pairing flow or contact an administrator to adjust permissions.
+> 若 scope 不足，可能需要重新執行 pairing 流程或聯繫管理員調整權限。
 
 ---
 
-## Step 7: Validation
+## 步驟 7：驗證測試
 
-### Automated Validation with Health Checker
+### 使用 Health Checker 自動驗證
 
 ```bash
 npm run validate
 ```
 
-The Health Checker will sequentially verify the following items:
+Health Checker 會依序檢查以下項目：
 
-1. `kiro-cli` availability
-2. `openclaw` CLI availability
-3. Hook file exists and is enabled
-4. Agent configuration file format is correct
-5. ACP Wrapper is executable
-6. Environment variables are set
-7. ACP device pairing status
+1. `kiro-cli` 可用性
+2. `openclaw` CLI 可用性
+3. Hook 檔案存在且已啟用
+4. Agent 設定檔格式正確
+5. ACP Wrapper 可執行
+6. 環境變數已設定
+7. ACP device pairing 狀態
 
-**Expected result**: All check items show `✓` passed. If any item fails, the Health Checker will provide specific fix suggestions.
+**預期結果**：所有檢查項目顯示 `✓` 通過。若有失敗項目，Health Checker 會提供具體的修復建議。
 
-### End-to-End Test
+### 端對端測試
 
-In Telegram, send:
+在 Telegram 中發送：
 
 ```
 /kiro hi
 ```
 
-**Expected result**:
+**預期結果**：
 
-- Kiro replies with a message (prefixed with `🤖 Kiro`)
-- The main OpenClaw agent does **not** reply simultaneously
-- Sending an empty `/kiro` (without any text) returns a brief usage hint
+- Kiro 回覆一則訊息（帶有 `🤖 Kiro` 前綴）
+- OpenClaw 主 agent **不會**同時回覆
+- 發送空的 `/kiro`（不帶任何文字）會回傳簡短的使用提示
 
 ---
 
-## Building the Skill from Source
+## 從原始碼建置 Skill
 
-If you need to rebuild the `.skill` file from source (instead of using the pre-packaged version in the repo):
+若你需要從原始碼重新建置 `.skill` 檔案（而非使用 repo 中預先打包的版本）：
 
 ```bash
-# 1. Ensure dependencies are installed
+# 1. 確認依賴已安裝
 npm install
 
-# 2. Compile TypeScript
+# 2. 編譯 TypeScript
 npm run build
 
-# 3. Build the .skill file
+# 3. 建置 .skill 檔案
 npm run build-skill
 ```
 
-**Expected result**: The terminal outputs the generated `.skill` file path and size. The built skill file is located in the project root (`kiro-telegram-acp.skill`).
+**預期結果**：終端機輸出產生的 `.skill` 檔案路徑與大小。建置後的 skill 檔案位於專案根目錄（`kiro-telegram-acp.skill`）。
 
-The build process automatically performs:
-1. TypeScript compilation
-2. Copies compiled JS and resource files to `skill-src/`
-3. Packages into a `.skill` file
+建置流程會自動執行：
+1. TypeScript 編譯
+2. 將編譯後的 JS 與資源檔案複製至 `skill-src/`
+3. 打包為 `.skill` 檔案
 
-> The build script source is at `scripts/build-skill.ts` (path: [scripts/build-skill.ts](scripts/build-skill.ts)).
+> 建置腳本原始碼位於 `scripts/build-skill.ts`（路徑：[scripts/build-skill.ts](scripts/build-skill.ts)）。
 
 ---
 
-## Known Limitation: Session Isolation
+## 已知限制：Session 隔離
 
-### Description
+### 限制說明
 
-The OpenClaw `message:received` hook mechanism has the following known limitations:
+OpenClaw 的 `message:received` hook 機制存在以下已知限制：
 
-1. **`message:received` hook cannot prevent messages from entering the main agent's context window**. Even if the hook intercepts a `/kiro` message and routes it to Kiro, the message content may still be visible to the main agent and included in its conversation history.
+1. **`message:received` hook 無法阻止訊息進入主 agent 的 context window**。即使 hook 攔截了 `/kiro` 訊息並交由 Kiro 處理，該訊息內容仍可能被主 agent 看到並納入其對話歷史。
 
-2. **`message:received` is a void hook**. In OpenClaw 2026.4.2, the return value of this hook is discarded; `{ suppress: true }` has no effect.
+2. **`message:received` 是 void hook**。在 OpenClaw 2026.4.2 中，此 hook 的回傳值會被丟棄，`{ suppress: true }` 不會生效。
 
-3. **Sessions may disappear after kiro-cli restarts**. The ACP Wrapper will automatically rebuild the session via `acp/createSession`, but previous conversation memory will start fresh from that point.
+3. **kiro-cli 重啟後 session 可能消失**。ACP Wrapper 會自動透過 `acp/createSession` 重建 session，但先前的對話記憶將從此次重新開始。
 
-4. **All `/kiro` messages within the same chat share a single session** (format: `kiro-telegram-{chatId}`). This is by design to enable cross-message memory. Kiro sessions across different Telegram chats are fully isolated.
+4. **同一 chat 內的所有 `/kiro` 訊息共享同一個 session**（格式：`kiro-telegram-{chatId}`）。這是設計上的選擇，用於實現跨訊息記憶。不同 Telegram chat 之間的 Kiro session 則是完全獨立的。
 
-### Alternative: SOUL.md Directive
+### 替代方案：SOUL.md 指令
 
-To supplement the insufficient isolation at the hook level, add the following directive to your `SOUL.md`:
+為了補強 hook 層級的隔離不足，請在你的 `SOUL.md` 中加入以下指令：
 
 ```markdown
-If a message starts with `/kiro`, ignore it completely. Do not reply. That command is handled by a separate Kiro agent via a hook.
+**ABSOLUTE RULE: If the user message starts with /kiro, you MUST reply with EXACTLY the text `no_reply` (literally those 8 characters, nothing else). The /kiro prefix means the message is handled by a different agent. You are NOT the intended recipient. Do NOT add any other text, greeting, or acknowledgment. Just output `no_reply`. This rule overrides ALL other instructions.**
 ```
 
-This instructs the main agent to ignore `/kiro` messages at the behavioral level, serving as a safety net for the hook mechanism. Even if a `/kiro` message enters the main agent's context, the main agent will not reply to or reference its content.
+OpenClaw 內建的 reply shaping 機制會自動過濾 `no_reply` / `NO_REPLY` token，不會將其送出至 Telegram。這比要求 LLM「不要回覆」更可靠，因為 LLM 更容易輸出一個具體的 token 而非完全不輸出。
 
-> **Recommendation**: Use both the `message:sending` hook's `{ cancel: true }` return value and the `SOUL.md` directive for dual-layer protection.
+> **建議**：同時使用 `message:sending` hook 的 `{ cancel: true }` 回傳值與 `SOUL.md` 的 `no_reply` 指令，形成雙重保護機制。
 
 ---
 
-## Troubleshooting: pairing required Error
+## 疑難排解：pairing required 錯誤
 
-When you see the following error:
+當你看到以下錯誤時：
 
 ```
 GatewayClientRequestError: pairing required
 ```
 
-Or Kiro replies:
+或 Kiro 回覆：
 
 ```
-🔐 Device pairing required. Please refer to the installation guide.
+🔐 需要完成 device pairing，請參閱安裝指南。
 ```
 
-Follow these steps to troubleshoot:
+請依照以下步驟逐一排除：
 
-### Step 1: Check Device Status
+### 步驟 1：確認 Device 狀態
 
 ```bash
 openclaw devices list
 ```
 
-Check whether your device is listed and whether its status is approved.
+檢查你的 device 是否已列出，以及其狀態是否為已核准。
 
-**If the device is not listed**: Pairing has not been performed yet. Continue to Step 2.
+**若 device 未列出**：表示尚未進行 pairing，請繼續步驟 2。
 
-**If the device is listed but status is pending**: The pairing request has not been approved yet. Skip to Step 3.
+**若 device 已列出但狀態為 pending**：表示 pairing 請求尚未被核准，請跳至步驟 3。
 
-### Step 2: Initiate Pairing Request
+### 步驟 2：發起 Pairing 請求
 
 ```bash
 openclaw acp pair
 ```
 
-**Expected result**: The terminal shows the pairing request has been sent.
+**預期結果**：終端機顯示 pairing 請求已發送。
 
-### Step 3: Approve Device
+### 步驟 3：Approve Device
 
 ```bash
 openclaw devices approve --latest
 ```
 
-**Expected result**: The terminal shows the device has been approved.
+**預期結果**：終端機顯示 device 已核准。
 
-### Step 4: Confirm Sufficient Scopes
+### 步驟 4：確認 Scopes 足夠
 
 ```bash
 openclaw devices list
 ```
 
-Confirm the device's scopes are not limited to just `operator.read`. ACP operations require additional scope permissions.
+確認 device 的 scopes 不僅僅是 `operator.read`。ACP 操作需要額外的 scope 權限。
 
-**If scopes are insufficient**: You may need to re-run the pairing flow or contact an administrator to adjust permission settings.
+**若 scope 不足**：可能需要重新執行 pairing 流程，或聯繫管理員調整權限設定。
 
-### Step 5: Re-test
+### 步驟 5：重新測試
 
 ```bash
-# Validate with Health Checker
+# 使用 Health Checker 驗證
 npm run validate
 
-# Or test directly in Telegram
-# Send: /kiro hi
+# 或直接在 Telegram 測試
+# 發送：/kiro hi
 ```
 
-**Expected result**: The `pairing required` error no longer appears, and Kiro responds normally.
+**預期結果**：`pairing required` 錯誤不再出現，Kiro 正常回覆。
 
-> If none of the above steps resolve the issue, confirm that the `openclaw` version is 2026.4.2 or a compatible version, and check that the network connection is working properly.
+> 若以上步驟皆無法解決問題，請確認 `openclaw` 版本是否為 2026.4.2 或相容版本，並檢查網路連線是否正常。
 
 ---
 
-## Automated Installation (Alternative)
+## 自動化安裝（替代方案）
 
-If you prefer an automated flow, use the built-in interactive install script:
+若你偏好自動化流程，可使用內建的互動式安裝腳本：
 
 ```bash
-# First build the install script
+# 先編譯安裝腳本
 npm install
 npm run build
 
-# Run the automated installation
+# 執行自動化安裝
 npm run install-skill
 ```
 
-The install script will automatically perform the following:
+安裝腳本會自動執行以下流程：
 
-1. Check `openclaw` CLI availability
-2. Check `kiro-cli` availability (stops immediately with install instructions if not found)
-3. Check Node.js version ≥ 18
-4. Run `npm install`
-5. Guide `.env` environment variable setup (with defaults and input prompts)
-6. Compile TypeScript
-7. Deploy hook to `~/.openclaw/workspace/hooks/`
-8. Generate agent config JSON
-9. Output installation summary and next steps
+1. 檢查 `openclaw` CLI 可用性
+2. 檢查 `kiro-cli` 可用性（若未找到會立即停止並提示安裝）
+3. 檢查 Node.js 版本 ≥ 18
+4. 執行 `npm install`
+5. 引導設定 `.env` 環境變數（提供預設值與輸入提示）
+6. 編譯 TypeScript
+7. 部署 hook 至 `~/.openclaw/workspace/hooks/`
+8. 產生 agent config JSON
+9. 輸出安裝摘要與下一步指引
 
-**Expected result**: After the install script completes, it displays an installation summary listing completed steps and next actions (such as ACP device pairing).
+**預期結果**：安裝腳本完成後顯示安裝摘要，列出已完成的步驟與下一步操作（如 ACP device pairing）。
 
-> If any step fails, the script will stop and output the completed steps along with the failure reason.
+> 若任一步驟失敗，腳本會停止執行並輸出已完成的步驟與失敗原因。
 
 ---
 
-## Related Documents
+## 相關文件
 
-| Document | Path | Description |
-|----------|------|-------------|
-| Architecture Overview | [docs/architecture.md](docs/architecture.md) | End-to-end message flow and system architecture |
-| Deployment Guide | [docs/deployment.md](docs/deployment.md) | Detailed deployment steps and troubleshooting (this document is the unified replacement) |
-| Wrapper Contract | [docs/wrapper-contract.md](docs/wrapper-contract.md) | ACP Wrapper stdout/stderr contract specification |
-| Environment Variable Template | [.env.example](.env.example) | All configurable environment variables with descriptions |
-| Agent Config Template | [templates/kiro-agent.json](templates/kiro-agent.json) | Kiro agent JSON configuration template |
-| KB Example | [templates/kb-example.md](templates/kb-example.md) | Example Knowledge Base file |
+| 文件 | 路徑 | 說明 |
+|------|------|------|
+| 架構概覽 | [docs/architecture.md](docs/architecture.md) | 端對端訊息流程與系統架構 |
+| 部署指南 | [docs/deployment.md](docs/deployment.md) | 詳細部署步驟與疑難排解（本文件為其統一替代） |
+| 環境變數範本 | [.env.example](.env.example) | 所有可設定的環境變數與說明 |
+| Agent 設定範本 | [templates/kiro-agent.json](templates/kiro-agent.json) | Kiro agent JSON 設定範本 |
+| KB 範例 | [templates/kb-example.md](templates/kb-example.md) | 範例 Knowledge Base 檔案 |

@@ -92,14 +92,11 @@ Your Telegram hook usually wants a one-shot request/response function. `openclaw
 You therefore need one of these:
 
 - a local ACP client that can send a single prompt through `openclaw acp`
-- a small wrapper process that speaks ACP over stdio and returns final text
-
-The example hook in this repo uses a placeholder wrapper command so the integration shape is correct without pretending `openclaw acp ask` exists.
+The hook uses `openclaw agent --session-id <id> --message <prompt> --json` for one-shot agent calls.
 
 Start from:
 
-- `examples/kiro-acp-ask.js`
-- `docs/wrapper-contract.md`
+- `examples/hook-template.ts`
 
 ## Step 5: Approve pairing and ACP scopes
 

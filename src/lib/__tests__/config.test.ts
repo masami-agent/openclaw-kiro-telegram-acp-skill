@@ -17,7 +17,6 @@ describe("loadConfig()", () => {
     // Clear all related environment variables to ensure test isolation
     delete process.env.KIRO_AGENT_NAME;
     delete process.env.KIRO_TIMEOUT_MS;
-    delete process.env.KIRO_WRAPPER_CMD;
     delete process.env.ALLOWED_CHAT_IDS;
     delete process.env.KIRO_REPLY_PREFIX;
     delete process.env.KIRO_DEBUG;
@@ -34,7 +33,6 @@ describe("loadConfig()", () => {
 
     expect(config.kiroAgentName).toBe("kiro");
     expect(config.kiroTimeoutMs).toBe(120000);
-    expect(config.kiroWrapperCmd).toBe("kiro-acp-ask");
     expect(config.allowedChatIds).toEqual([]);
     expect(config.replyPrefix).toBe("🤖 Kiro");
     expect(config.debugMode).toBe(false);
@@ -43,7 +41,6 @@ describe("loadConfig()", () => {
   it("should override defaults with environment variables", async () => {
     process.env.KIRO_AGENT_NAME = "my-kiro";
     process.env.KIRO_TIMEOUT_MS = "60000";
-    process.env.KIRO_WRAPPER_CMD = "custom-wrapper";
     process.env.ALLOWED_CHAT_IDS = "111,222,333";
     process.env.KIRO_REPLY_PREFIX = "🤖 MyBot";
     process.env.KIRO_DEBUG = "true";
@@ -53,7 +50,6 @@ describe("loadConfig()", () => {
 
     expect(config.kiroAgentName).toBe("my-kiro");
     expect(config.kiroTimeoutMs).toBe(60000);
-    expect(config.kiroWrapperCmd).toBe("custom-wrapper");
     expect(config.allowedChatIds).toEqual(["111", "222", "333"]);
     expect(config.replyPrefix).toBe("🤖 MyBot");
     expect(config.debugMode).toBe(true);

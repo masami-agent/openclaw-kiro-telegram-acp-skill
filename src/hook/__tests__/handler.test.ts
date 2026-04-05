@@ -24,7 +24,6 @@ vi.mock("../../lib/config.js", () => ({
   loadConfig: () => ({
     kiroAgentName: "kiro",
     kiroTimeoutMs: 120_000,
-    kiroWrapperCmd: "kiro-acp-ask",
     allowedChatIds: [],
     replyPrefix: "🤖 Kiro",
     debugMode: false,
