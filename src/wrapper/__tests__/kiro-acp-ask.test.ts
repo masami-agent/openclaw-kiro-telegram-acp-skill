@@ -14,7 +14,7 @@ import {
 } from "../kiro-acp-ask.js";
 
 // ============================================================
-// JSON-RPC 序列化 / 反序列化
+// JSON-RPC serialization / deserialization
 // ============================================================
 
 describe("JSON-RPC helpers", () => {
@@ -23,7 +23,7 @@ describe("JSON-RPC helpers", () => {
   });
 
   describe("buildJsonRpcRequest()", () => {
-    it("應建立符合 JSON-RPC 2.0 格式的 request", () => {
+    it("should build a request conforming to JSON-RPC 2.0 format", () => {
       const req = buildJsonRpcRequest("initialize", { foo: "bar" });
 
       expect(req.jsonrpc).toBe("2.0");
@@ -32,7 +32,7 @@ describe("JSON-RPC helpers", () => {
       expect(req.params).toEqual({ foo: "bar" });
     });
 
-    it("每次呼叫應遞增 id", () => {
+    it("should increment id on each call", () => {
       const r1 = buildJsonRpcRequest("a");
       const r2 = buildJsonRpcRequest("b");
       const r3 = buildJsonRpcRequest("c");
@@ -42,7 +42,7 @@ describe("JSON-RPC helpers", () => {
       expect(r3.id).toBe(3);
     });
 
-    it("無 params 時不應包含 params 欄位", () => {
+    it("should not include params field when no params are provided", () => {
       const req = buildJsonRpcRequest("shutdown");
 
       expect(req).not.toHaveProperty("params");
@@ -50,7 +50,7 @@ describe("JSON-RPC helpers", () => {
   });
 
   describe("serializeRequest()", () => {
-    it("應序列化為 JSON 字串並以換行結尾", () => {
+    it("should serialize to a JSON string ending with a newline", () => {
       const req = buildJsonRpcRequest("initialize");
       const serialized = serializeRequest(req);
 
@@ -62,7 +62,7 @@ describe("JSON-RPC helpers", () => {
   });
 
   describe("parseResponses()", () => {
-    it("應從完整的 JSON 行中解析出 response", () => {
+    it("should parse responses from complete JSON lines", () => {
       const resp: JsonRpcResponse = {
         jsonrpc: "2.0",
         id: 1,
@@ -78,7 +78,7 @@ describe("JSON-RPC helpers", () => {
       expect(remaining).toBe("");
     });
 
-    it("應處理多個 response 在同一 buffer 中", () => {
+    it("should handle multiple responses in the same buffer", () => {
       const r1: JsonRpcResponse = { jsonrpc: "2.0", id: 1, result: {} };
       const r2: JsonRpcResponse = { jsonrpc: "2.0", id: 2, result: {} };
       const buffer = JSON.stringify(r1) + "\n" + JSON.stringify(r2) + "\n";
@@ -91,7 +91,7 @@ describe("JSON-RPC helpers", () => {
       expect(remaining).toBe("");
     });
 
-    it("應保留不完整的行作為 remaining buffer", () => {
+    it("should preserve incomplete lines as remaining buffer", () => {
       const complete: JsonRpcResponse = { jsonrpc: "2.0", id: 1, result: {} };
       const buffer = JSON.stringify(complete) + "\n" + '{"jsonrpc":"2.0","id":2';
 
@@ -101,7 +101,7 @@ describe("JSON-RPC helpers", () => {
       expect(remaining).toBe('{"jsonrpc":"2.0","id":2');
     });
 
-    it("應忽略空行", () => {
+    it("should ignore empty lines", () => {
       const resp: JsonRpcResponse = { jsonrpc: "2.0", id: 1, result: {} };
       const buffer = "\n\n" + JSON.stringify(resp) + "\n\n";
 
@@ -110,7 +110,7 @@ describe("JSON-RPC helpers", () => {
       expect(responses).toHaveLength(1);
     });
 
-    it("應忽略非 JSON-RPC 格式的行", () => {
+    it("should ignore non-JSON-RPC format lines", () => {
       const buffer = "some random log output\n" +
         JSON.stringify({ jsonrpc: "2.0", id: 1, result: {} }) + "\n" +
         "another log line\n";
@@ -121,7 +121,7 @@ describe("JSON-RPC helpers", () => {
       expect(responses[0]!.id).toBe(1);
     });
 
-    it("空 buffer 應回傳空陣列", () => {
+    it("empty buffer should return an empty array", () => {
       const [responses, remaining] = parseResponses("");
 
       expect(responses).toHaveLength(0);
@@ -131,11 +131,11 @@ describe("JSON-RPC helpers", () => {
 });
 
 // ============================================================
-// Session not found 偵測
+// Session not found detection
 // ============================================================
 
 describe("isSessionNotFoundError()", () => {
-  it("error.message 包含 'session not found' 時應回傳 true", () => {
+  it("should return true when error.message contains 'session not found'", () => {
     const resp: JsonRpcResponse = {
       jsonrpc: "2.0",
       id: 1,
@@ -144,7 +144,7 @@ describe("isSessionNotFoundError()", () => {
     expect(isSessionNotFoundError(resp)).toBe(true);
   });
 
-  it("error.message 包含 'session does not exist' 時應回傳 true", () => {
+  it("should return true when error.message contains 'session does not exist'", () => {
     const resp: JsonRpcResponse = {
       jsonrpc: "2.0",
       id: 1,
@@ -153,7 +153,7 @@ describe("isSessionNotFoundError()", () => {
     expect(isSessionNotFoundError(resp)).toBe(true);
   });
 
-  it("error.message 包含 'no such session' 時應回傳 true", () => {
+  it("should return true when error.message contains 'no such session'", () => {
     const resp: JsonRpcResponse = {
       jsonrpc: "2.0",
       id: 1,
@@ -162,7 +162,7 @@ describe("isSessionNotFoundError()", () => {
     expect(isSessionNotFoundError(resp)).toBe(true);
   });
 
-  it("error.data 包含 'session not found' 時應回傳 true", () => {
+  it("should return true when error.data contains 'session not found'", () => {
     const resp: JsonRpcResponse = {
       jsonrpc: "2.0",
       id: 1,
@@ -171,7 +171,7 @@ describe("isSessionNotFoundError()", () => {
     expect(isSessionNotFoundError(resp)).toBe(true);
   });
 
-  it("error.message 包含 'invalid session' 時應回傳 true", () => {
+  it("should return true when error.message contains 'invalid session'", () => {
     const resp: JsonRpcResponse = {
       jsonrpc: "2.0",
       id: 1,
@@ -180,7 +180,7 @@ describe("isSessionNotFoundError()", () => {
     expect(isSessionNotFoundError(resp)).toBe(true);
   });
 
-  it("無 error 時應回傳 false", () => {
+  it("should return false when there is no error", () => {
     const resp: JsonRpcResponse = {
       jsonrpc: "2.0",
       id: 1,
@@ -189,7 +189,7 @@ describe("isSessionNotFoundError()", () => {
     expect(isSessionNotFoundError(resp)).toBe(false);
   });
 
-  it("不相關的 error 應回傳 false", () => {
+  it("should return false for unrelated errors", () => {
     const resp: JsonRpcResponse = {
       jsonrpc: "2.0",
       id: 1,
@@ -200,7 +200,7 @@ describe("isSessionNotFoundError()", () => {
 });
 
 // ============================================================
-// Session 建立與 fallback 邏輯
+// Session setup and fallback logic
 // ============================================================
 
 describe("Session setup", () => {
@@ -209,7 +209,7 @@ describe("Session setup", () => {
   });
 
   describe("buildSessionRequests()", () => {
-    it("有 sessionId 時應建立 bindSession request", () => {
+    it("should build a bindSession request when sessionId is provided", () => {
       const [req, method] = buildSessionRequests("kiro", "session-123");
 
       expect(method).toBe("acp/bindSession");
@@ -220,7 +220,7 @@ describe("Session setup", () => {
       });
     });
 
-    it("無 sessionId 時應建立 createSession request", () => {
+    it("should build a createSession request when no sessionId is provided", () => {
       const [req, method] = buildSessionRequests("kiro");
 
       expect(method).toBe("acp/createSession");
@@ -228,7 +228,7 @@ describe("Session setup", () => {
       expect(req.params).toEqual({ agentName: "kiro" });
     });
 
-    it("sessionId 為 undefined 時應建立 createSession request", () => {
+    it("should build a createSession request when sessionId is undefined", () => {
       const [req, method] = buildSessionRequests("kiro", undefined);
 
       expect(method).toBe("acp/createSession");
@@ -237,7 +237,7 @@ describe("Session setup", () => {
   });
 
   describe("buildFallbackCreateRequest()", () => {
-    it("應建立 createSession request", () => {
+    it("should build a createSession request", () => {
       const req = buildFallbackCreateRequest("kiro");
 
       expect(req.method).toBe("acp/createSession");
@@ -246,7 +246,7 @@ describe("Session setup", () => {
   });
 
   describe("handleSessionResponse()", () => {
-    it("成功的 createSession 應回傳 ok + sessionId", () => {
+    it("successful createSession should return ok + sessionId", () => {
       const resp: JsonRpcResponse = {
         jsonrpc: "2.0",
         id: 1,
@@ -261,7 +261,7 @@ describe("Session setup", () => {
       });
     });
 
-    it("成功的 bindSession 應回傳 ok + sessionId", () => {
+    it("successful bindSession should return ok + sessionId", () => {
       const resp: JsonRpcResponse = {
         jsonrpc: "2.0",
         id: 1,
@@ -276,7 +276,7 @@ describe("Session setup", () => {
       });
     });
 
-    it("應支援 session_id（snake_case）欄位名稱", () => {
+    it("should support session_id (snake_case) field name", () => {
       const resp: JsonRpcResponse = {
         jsonrpc: "2.0",
         id: 1,
@@ -291,7 +291,7 @@ describe("Session setup", () => {
       });
     });
 
-    it("bindSession 遇到 session not found 應回傳 fallback", () => {
+    it("bindSession encountering session not found should return fallback", () => {
       const resp: JsonRpcResponse = {
         jsonrpc: "2.0",
         id: 1,
@@ -303,7 +303,7 @@ describe("Session setup", () => {
       expect(result).toEqual({ action: "fallback" });
     });
 
-    it("createSession 遇到 session not found 應回傳 error（不 fallback）", () => {
+    it("createSession encountering session not found should return error (no fallback)", () => {
       const resp: JsonRpcResponse = {
         jsonrpc: "2.0",
         id: 1,
@@ -315,7 +315,7 @@ describe("Session setup", () => {
       expect(result.action).toBe("error");
     });
 
-    it("bindSession 遇到非 session-not-found 錯誤應回傳 error", () => {
+    it("bindSession encountering non-session-not-found error should return error", () => {
       const resp: JsonRpcResponse = {
         jsonrpc: "2.0",
         id: 1,
@@ -330,7 +330,7 @@ describe("Session setup", () => {
       }
     });
 
-    it("response 缺少 sessionId 應回傳 error", () => {
+    it("response missing sessionId should return error", () => {
       const resp: JsonRpcResponse = {
         jsonrpc: "2.0",
         id: 1,
@@ -352,7 +352,7 @@ describe("Session setup", () => {
 // ============================================================
 
 describe("extractReplyText()", () => {
-  it("應從 result.text 提取回覆文字", () => {
+  it("should extract reply text from result.text", () => {
     const resp: JsonRpcResponse = {
       jsonrpc: "2.0",
       id: 1,
@@ -362,7 +362,7 @@ describe("extractReplyText()", () => {
     expect(extractReplyText(resp)).toBe("Hello from Kiro!");
   });
 
-  it("應從 result.content 提取回覆文字", () => {
+  it("should extract reply text from result.content", () => {
     const resp: JsonRpcResponse = {
       jsonrpc: "2.0",
       id: 1,
@@ -372,7 +372,7 @@ describe("extractReplyText()", () => {
     expect(extractReplyText(resp)).toBe("Content field reply");
   });
 
-  it("應從 result.message 提取回覆文字", () => {
+  it("should extract reply text from result.message", () => {
     const resp: JsonRpcResponse = {
       jsonrpc: "2.0",
       id: 1,
@@ -382,7 +382,7 @@ describe("extractReplyText()", () => {
     expect(extractReplyText(resp)).toBe("Message field reply");
   });
 
-  it("result.text 優先於 result.content", () => {
+  it("result.text should take priority over result.content", () => {
     const resp: JsonRpcResponse = {
       jsonrpc: "2.0",
       id: 1,
@@ -392,7 +392,7 @@ describe("extractReplyText()", () => {
     expect(extractReplyText(resp)).toBe("primary");
   });
 
-  it("response 有 error 時應拋出錯誤", () => {
+  it("should throw an error when response has an error", () => {
     const resp: JsonRpcResponse = {
       jsonrpc: "2.0",
       id: 1,
@@ -402,7 +402,7 @@ describe("extractReplyText()", () => {
     expect(() => extractReplyText(resp)).toThrow("Something went wrong");
   });
 
-  it("result 為空物件時應回傳空字串", () => {
+  it("should return an empty string when result is an empty object", () => {
     const resp: JsonRpcResponse = {
       jsonrpc: "2.0",
       id: 1,
@@ -414,11 +414,11 @@ describe("extractReplyText()", () => {
 });
 
 // ============================================================
-// CLI 參數解析
+// CLI argument parsing
 // ============================================================
 
 describe("parseCLIArgs()", () => {
-  it("應正確解析 agent 與 prompt", () => {
+  it("should correctly parse agent and prompt", () => {
     const result = parseCLIArgs(["node", "script.js", "kiro", "hello world"]);
 
     expect(result).toEqual({
@@ -427,7 +427,7 @@ describe("parseCLIArgs()", () => {
     });
   });
 
-  it("應將多個 prompt 參數合併為一個字串", () => {
+  it("should merge multiple prompt arguments into a single string", () => {
     const result = parseCLIArgs([
       "node", "script.js", "kiro", "hello", "beautiful", "world",
     ]);
@@ -438,7 +438,7 @@ describe("parseCLIArgs()", () => {
     });
   });
 
-  it("應解析 --session-id 選項", () => {
+  it("should parse the --session-id option", () => {
     const result = parseCLIArgs([
       "node", "script.js", "kiro", "hello", "--session-id", "sess-123",
     ]);
@@ -450,7 +450,7 @@ describe("parseCLIArgs()", () => {
     });
   });
 
-  it("--session-id 在 prompt 之前也應正確解析", () => {
+  it("--session-id before prompt should also be parsed correctly", () => {
     const result = parseCLIArgs([
       "node", "script.js", "--session-id", "sess-456", "kiro", "hello",
     ]);
@@ -462,19 +462,19 @@ describe("parseCLIArgs()", () => {
     });
   });
 
-  it("參數不足時應回傳 null", () => {
+  it("should return null when arguments are insufficient", () => {
     expect(parseCLIArgs(["node", "script.js"])).toBeNull();
     expect(parseCLIArgs(["node", "script.js", "kiro"])).toBeNull();
   });
 
-  it("僅有 --session-id 無 agent/prompt 時應回傳 null", () => {
+  it("should return null when only --session-id is provided without agent/prompt", () => {
     expect(
       parseCLIArgs(["node", "script.js", "--session-id", "sess-123"]),
     ).toBeNull();
   });
 
-  it("--session-id 無值時應回傳 null（值被當作 agent）", () => {
-    // "--session-id" 後面沒有值，"kiro" 被當作 agent，缺少 prompt
+  it("should return null when --session-id has no value (value treated as agent)", () => {
+    // "--session-id" has no value after it, "kiro" is treated as agent, missing prompt
     const result = parseCLIArgs([
       "node", "script.js", "--session-id", "kiro",
     ]);

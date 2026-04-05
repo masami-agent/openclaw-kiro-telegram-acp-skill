@@ -1,18 +1,18 @@
 #!/usr/bin/env node
 
 /**
- * ACP Wrapper — 透過 stdio 與 `openclaw acp` bridge 通訊的 ACP 客戶端。
+ * ACP Wrapper — ACP client that communicates with the `openclaw acp` bridge via stdio.
  *
- * 程式化使用：import { acpAsk } from "./kiro-acp-ask.js"
- * CLI 使用：kiro-acp-ask <agent> <prompt> [--session-id <id>]
+ * Programmatic usage: import { acpAsk } from "./kiro-acp-ask.js"
+ * CLI usage: kiro-acp-ask <agent> <prompt> [--session-id <id>]
  *
  * Exit codes:
- *   0 = 成功
+ *   0 = success
  *   1 = usage error
- *   2 = 連線失敗
+ *   2 = connection failure
  *   3 = timeout
  *
- * 所有診斷訊息輸出至 stderr，僅最終回覆文字輸出至 stdout。
+ * All diagnostic messages are output to stderr; only the final reply text is output to stdout.
  */
 
 import { spawn, type ChildProcess } from "node:child_process";
@@ -24,17 +24,17 @@ import type {
 } from "../types/index.js";
 
 // ============================================================
-// JSON-RPC helpers（exported for testing）
+// JSON-RPC helpers (exported for testing)
 // ============================================================
 
 let _nextId = 1;
 
-/** 重設 JSON-RPC request ID 計數器（僅供測試使用）。 */
+/** Reset the JSON-RPC request ID counter (for testing only). */
 export function resetIdCounter(): void {
   _nextId = 1;
 }
 
-/** 建立 JSON-RPC 2.0 request 物件。 */
+/** Build a JSON-RPC 2.0 request object. */
 export function buildJsonRpcRequest(
   method: string,
   params?: Record<string, unknown>,
@@ -50,14 +50,14 @@ export function buildJsonRpcRequest(
   return req;
 }
 
-/** 將 JSON-RPC request 序列化為可寫入 stdin 的字串（含換行）。 */
+/** Serialize a JSON-RPC request to a string writable to stdin (with newline). */
 export function serializeRequest(req: JsonRpcRequest): string {
   return JSON.stringify(req) + "\n";
 }
 
 /**
- * 從原始 buffer 字串中解析出所有完整的 JSON-RPC response。
- * 回傳 [已解析的 responses, 剩餘未完成的 buffer]。
+ * Parse all complete JSON-RPC responses from a raw buffer string.
+ * Returns [parsed responses, remaining incomplete buffer].
  */
 export function parseResponses(
   buffer: string,
@@ -80,7 +80,7 @@ export function parseResponses(
         responses.push(parsed);
       }
     } catch {
-      // 非 JSON 行（可能是 stderr 混入），忽略
+      // Non-JSON line (possibly stderr mixed in), ignore
     }
   }
 
@@ -88,8 +88,8 @@ export function parseResponses(
 }
 
 /**
- * 判斷 JSON-RPC response 是否為 session 不存在錯誤。
- * 用於 bindSession fallback 邏輯。
+ * Determine if a JSON-RPC response is a session-not-found error.
+ * Used for bindSession fallback logic.
  */
 export function isSessionNotFoundError(response: JsonRpcResponse): boolean {
   if (!response.error) return false;
@@ -109,7 +109,7 @@ export function isSessionNotFoundError(response: JsonRpcResponse): boolean {
 }
 
 // ============================================================
-// Session 建立邏輯（exported for testing）
+// Session setup logic (exported for testing)
 // ============================================================
 
 export interface SessionSetupResult {
@@ -118,13 +118,13 @@ export interface SessionSetupResult {
 }
 
 /**
- * 產生 session 建立所需的 JSON-RPC request 序列。
+ * Generate the JSON-RPC request sequence needed for session setup.
  *
- * - 若提供 sessionId → 先嘗試 bindSession
- * - 否則 → 直接 createSession
+ * - If sessionId is provided → try bindSession first
+ * - Otherwise → createSession directly
  *
- * 回傳 [requests, expectedMethod]，其中 expectedMethod 為
- * "acp/bindSession" 或 "acp/createSession"。
+ * Returns [request, expectedMethod], where expectedMethod is
+ * "acp/bindSession" or "acp/createSession".
  */
 export function buildSessionRequests(
   agentName: string,
@@ -141,7 +141,7 @@ export function buildSessionRequests(
   return [req, "acp/createSession"];
 }
 
-/** 建立 fallback createSession request（bindSession 失敗時使用）。 */
+/** Build a fallback createSession request (used when bindSession fails). */
 export function buildFallbackCreateRequest(
   agentName: string,
 ): JsonRpcRequest {
@@ -149,12 +149,12 @@ export function buildFallbackCreateRequest(
 }
 
 /**
- * 處理 session 回應，判斷是否需要 fallback。
+ * Process session response and determine if fallback is needed.
  *
- * 回傳：
- * - { action: "ok", sessionId } — session 建立成功
- * - { action: "fallback" } — bindSession 失敗，需 fallback 至 createSession
- * - { action: "error", message } — 不可恢復的錯誤
+ * Returns:
+ * - { action: "ok", sessionId } — session established successfully
+ * - { action: "fallback" } — bindSession failed, need to fall back to createSession
+ * - { action: "error", message } — unrecoverable error
  */
 export function handleSessionResponse(
   response: JsonRpcResponse,
@@ -182,7 +182,7 @@ export function handleSessionResponse(
 }
 
 /**
- * 從 sendMessage response 中提取回覆文字。
+ * Extract reply text from a sendMessage response.
  */
 export function extractReplyText(response: JsonRpcResponse): string {
   if (response.error) {
@@ -191,7 +191,7 @@ export function extractReplyText(response: JsonRpcResponse): string {
     );
   }
   const result = response.result as Record<string, unknown> | undefined;
-  // 嘗試多種常見欄位名稱
+  // Try multiple common field names
   const text =
     (result?.text as string) ??
     (result?.content as string) ??
@@ -201,7 +201,7 @@ export function extractReplyText(response: JsonRpcResponse): string {
 }
 
 // ============================================================
-// 核心 acpAsk 函式
+// Core acpAsk function
 // ============================================================
 
 export async function acpAsk(
@@ -220,13 +220,13 @@ export async function acpAsk(
       signal: controller.signal,
     });
 
-    // 收集 stderr 供診斷
+    // Collect stderr for diagnostics
     let stderrBuf = "";
     child.stderr?.on("data", (chunk: Buffer) => {
       stderrBuf += chunk.toString();
     });
 
-    // 建立 response 收集機制
+    // Set up response collection mechanism
     let stdoutBuf = "";
     const pendingResolvers = new Map<
       number,
@@ -262,7 +262,7 @@ export async function acpAsk(
       });
     };
 
-    // 監聽子程序異常退出
+    // Listen for child process abnormal exit
     const exitPromise = new Promise<never>((_, reject) => {
       child!.on("error", (err) => {
         reject(new Error(`ACP bridge error: ${err.message}`));
@@ -312,7 +312,7 @@ export async function acpAsk(
     if (sessionResult.action === "ok") {
       actualSessionId = sessionResult.sessionId;
     } else if (sessionResult.action === "fallback") {
-      // bindSession 失敗，fallback 至 createSession
+      // bindSession failed, fall back to createSession
       process.stderr.write(
         "[acp-wrapper] bindSession failed (session not found), falling back to createSession...\n",
       );
@@ -348,18 +348,18 @@ export async function acpAsk(
 
     process.stderr.write("[acp-wrapper] Reply received.\n");
 
-    // Step 4: 嘗試 graceful shutdown（不等待回應）
+    // Step 4: attempt graceful shutdown (don't wait for response)
     try {
       const shutdownReq = buildJsonRpcRequest("shutdown");
       child.stdin?.write(serializeRequest(shutdownReq));
       child.stdin?.end();
     } catch {
-      // shutdown 失敗不影響結果
+      // Shutdown failure does not affect the result
     }
 
     return { text: replyText, sessionId: actualSessionId };
   } catch (err: unknown) {
-    // 區分 timeout vs 其他錯誤
+    // Distinguish timeout vs other errors
     if (controller.signal.aborted) {
       const timeoutErr = new Error("ACP request timed out");
       (timeoutErr as NodeJS.ErrnoException).code = "TIMEOUT";
@@ -368,7 +368,7 @@ export async function acpAsk(
     throw err;
   } finally {
     clearTimeout(timer);
-    // 確保子程序被清理
+    // Ensure child process is cleaned up
     if (child && !child.killed) {
       try {
         child.kill("SIGTERM");
@@ -383,7 +383,7 @@ export async function acpAsk(
 // CLI entry point
 // ============================================================
 
-/** 解析 CLI 參數。 */
+/** Parse CLI arguments. */
 export function parseCLIArgs(
   argv: string[],
 ): { agentName: string; prompt: string; sessionId?: string } | null {
@@ -413,7 +413,7 @@ export function parseCLIArgs(
   return { agentName, prompt, sessionId };
 }
 
-/** CLI main — 僅在直接執行時運行。 */
+/** CLI main — only runs when executed directly. */
 async function main(): Promise<void> {
   const parsed = parseCLIArgs(process.argv);
 
@@ -429,7 +429,7 @@ async function main(): Promise<void> {
 
   try {
     const result = await acpAsk({ agentName, prompt, timeoutMs, sessionId });
-    // 僅將最終回覆文字輸出至 stdout
+    // Only output the final reply text to stdout
     process.stdout.write(result.text);
   } catch (err: unknown) {
     const error = err as NodeJS.ErrnoException;
@@ -439,7 +439,7 @@ async function main(): Promise<void> {
       process.exit(3);
     }
 
-    // 連線失敗或其他錯誤
+    // Connection failure or other errors
     process.stderr.write(
       `[acp-wrapper] Error: ${error.message ?? String(err)}\n`,
     );
@@ -447,7 +447,7 @@ async function main(): Promise<void> {
   }
 }
 
-// 偵測是否為直接執行（ESM 環境）
+// Detect if running directly (ESM environment)
 const isDirectRun =
   process.argv[1] &&
   (process.argv[1].endsWith("kiro-acp-ask.js") ||
