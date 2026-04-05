@@ -72,11 +72,11 @@ Suggested convention:
 - `2` ACP transport/session error
 - `3` timeout
 
-## Included stub
+## Included implementation
 
 See:
 
 - `examples/kiro-acp-ask.js`
 - `skill-src/kiro-telegram-acp/references/kiro-acp-ask.js`
 
-These are **contract stubs**, not full implementations.
+These are **minimal working implementations** that spawn `openclaw acp` over stdio, send an ACP initialize + prompt request, and return the final assistant text on stdout.
