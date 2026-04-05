@@ -1,39 +1,39 @@
 // ============================================================
-// Reply Suppressor — 管理 pending session 標記，確保 message:sending
-// hook 能可靠地取消主 agent 回覆
-// 對應需求: 12.1, 12.2, 12.3, 12.4, 12.5
+// Reply Suppressor — Manage pending session marks to ensure the message:sending
+// hook can reliably cancel the main agent reply
+// Requirements: 12.1, 12.2, 12.3, 12.4, 12.5
 // ============================================================
 
 import type { SuppressionLog } from "../types/index.js";
 
-/** TTL 預設 30 秒（毫秒） */
+/** Default TTL: 30 seconds (milliseconds) */
 const DEFAULT_TTL_MS = 30_000;
 
-/** 最大日誌保留筆數 */
+/** Maximum log entries to retain */
 const MAX_LOG_ENTRIES = 100;
 
 /**
- * 儲存 session key → 標記時間戳記（Date.now()）。
- * 使用 Map 確保 O(1) 查詢與刪除。
+ * Store session key → mark timestamp (Date.now()).
+ * Uses Map for O(1) lookup and deletion.
  */
 const sessionStore: Map<string, number> = new Map();
 
-/** 操作日誌（環形緩衝區，最多保留 MAX_LOG_ENTRIES 筆） */
+/** Operation log (ring buffer, retains up to MAX_LOG_ENTRIES) */
 const logs: SuppressionLog[] = [];
 
 /**
- * 將日誌寫入 stderr 並加入內部日誌陣列。
+ * Write log to stderr and add to the internal log array.
  */
 function addLog(sessionKey: string, action: SuppressionLog["action"]): void {
   const timestamp = Date.now();
   const entry: SuppressionLog = { sessionKey, timestamp, action };
 
-  // 記錄至 stderr（含 session key 與時間戳記）
+  // Log to stderr (with session key and timestamp)
   process.stderr.write(
     `[ReplySuppressor] ${action} session="${sessionKey}" at=${timestamp}\n`,
   );
 
-  // 維持日誌上限
+  // Maintain log size limit
   if (logs.length >= MAX_LOG_ENTRIES) {
     logs.shift();
   }
@@ -41,7 +41,7 @@ function addLog(sessionKey: string, action: SuppressionLog["action"]): void {
 }
 
 /**
- * 清除過期的 session 標記（TTL 已超過 DEFAULT_TTL_MS）。
+ * Purge expired session marks (TTL has exceeded DEFAULT_TTL_MS).
  */
 function purgeExpired(): void {
   const now = Date.now();
@@ -54,10 +54,11 @@ function purgeExpired(): void {
 }
 
 /**
- * 標記 session 為 pending（在 message:received 階段呼叫）。
+ * Mark a session as pending (called during the message:received phase).
  *
- * 此為同步操作，確保標記在任何 async 操作（如 ACP Wrapper 呼叫）之前完成，
- * 避免 message:sending hook 因時序問題而遺失取消訊號。
+ * This is a synchronous operation to ensure the mark is set before any async
+ * operations (such as ACP Wrapper calls), preventing the message:sending hook
+ * from missing the cancel signal due to timing issues.
  */
 export function markSession(sessionKey: string): void {
   purgeExpired();
@@ -66,12 +67,13 @@ export function markSession(sessionKey: string): void {
 }
 
 /**
- * 檢查並消費 session 標記（在 message:sending 階段呼叫）。
+ * Check and consume a session mark (called during the message:sending phase).
  *
- * 回傳 true 表示應取消主 agent 回覆（回傳 `{ cancel: true }`）。
- * 消費後標記會被清除，避免影響後續非 `/kiro` 訊息的正常處理。
+ * Returns true if the main agent reply should be cancelled (return `{ cancel: true }`).
+ * After consumption, the mark is cleared to avoid affecting subsequent non-`/kiro`
+ * messages' normal processing.
  *
- * @returns true 若 session 已標記且未過期，false 否則
+ * @returns true if the session is marked and not expired, false otherwise
  */
 export function shouldCancel(sessionKey: string): boolean {
   purgeExpired();
@@ -81,24 +83,24 @@ export function shouldCancel(sessionKey: string): boolean {
     return false;
   }
 
-  // 檢查是否在 TTL 內
+  // Check if within TTL
   if (Date.now() - markedAt >= DEFAULT_TTL_MS) {
     sessionStore.delete(sessionKey);
     addLog(sessionKey, "expired");
     return false;
   }
 
-  // 消費標記（一次性使用）
+  // Consume the mark (one-time use)
   sessionStore.delete(sessionKey);
   addLog(sessionKey, "cancelled");
   return true;
 }
 
 /**
- * 取得最近的抑制操作日誌供除錯使用。
+ * Get recent suppression operation logs for debugging.
  *
- * @param count - 回傳的日誌筆數，預設 10
- * @returns 最近的 SuppressionLog 陣列（由舊到新）
+ * @param count - Number of log entries to return, default 10
+ * @returns Array of recent SuppressionLog entries (oldest to newest)
  */
 export function getRecentLogs(count: number = 10): SuppressionLog[] {
   const start = Math.max(0, logs.length - count);

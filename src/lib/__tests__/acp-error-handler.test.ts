@@ -9,88 +9,88 @@ describe("handleAcpError()", () => {
   });
 
   // --- AccessDeniedException ---
-  it("應辨識 AccessDeniedException 並回傳權限不足訊息", () => {
+  it("should identify AccessDeniedException and return an insufficient permissions message", () => {
     const raw = 'AccessDeniedException: User is not authorized to perform this action';
     const result = handleAcpError(raw);
 
     expect(result.isAcpError).toBe(true);
-    expect(result.userMessage).toBe("🔐 ACP 權限不足，請執行 device pairing。");
-    expect(result.fixSuggestions).toContain("請執行 `openclaw acp pair` 完成 device pairing");
+    expect(result.userMessage).toBe("🔐 Insufficient ACP permissions. Please perform device pairing.");
+    expect(result.fixSuggestions).toContain("Run `openclaw acp pair` to complete device pairing");
     expect(result.debugMessage).toBe(raw);
   });
 
-  it("AccessDeniedException 應不區分大小寫", () => {
+  it("AccessDeniedException should be case-insensitive", () => {
     const raw = 'accessdeniedexception: forbidden';
     const result = handleAcpError(raw);
 
     expect(result.isAcpError).toBe(true);
-    expect(result.userMessage).toContain("ACP 權限不足");
+    expect(result.userMessage).toContain("Insufficient ACP permissions");
   });
 
   // --- pairing required ---
-  it("應辨識 pairing required 並回傳 pairing 相關訊息", () => {
+  it("should identify pairing required and return a pairing-related message", () => {
     const raw = 'Error: pairing required for device xyz-123';
     const result = handleAcpError(raw);
 
     expect(result.isAcpError).toBe(true);
-    expect(result.userMessage).toBe("🔐 需要完成 device pairing，請參閱安裝指南。");
+    expect(result.userMessage).toBe("🔐 Device pairing required. Please refer to the installation guide.");
     expect(result.fixSuggestions.length).toBeGreaterThan(0);
     expect(result.debugMessage).toBe(raw);
   });
 
-  it("pairing required 應不區分大小寫", () => {
+  it("pairing required should be case-insensitive", () => {
     const raw = 'PAIRING REQUIRED';
     const result = handleAcpError(raw);
 
     expect(result.isAcpError).toBe(true);
-    expect(result.userMessage).toContain("device pairing");
+    expect(result.userMessage).toContain("Device pairing");
   });
 
-  // --- scope 相關 ---
-  it("應辨識 scope 關鍵字並回傳 scope 權限訊息", () => {
+  // --- scope related ---
+  it("should identify scope keyword and return a scope permissions message", () => {
     const raw = 'Error: insufficient scope permissions for acp:agent:invoke';
     const result = handleAcpError(raw);
 
     expect(result.isAcpError).toBe(true);
-    expect(result.userMessage).toContain("scope 權限不足");
+    expect(result.userMessage).toContain("scope permissions");
     expect(result.fixSuggestions.length).toBeGreaterThan(0);
   });
 
-  it("scope 關鍵字應作為獨立單詞比對", () => {
-    // "microscope" 不應觸發 scope 比對
+  it("scope keyword should match as a standalone word", () => {
+    // "microscope" should not trigger scope matching
     const raw = 'Error: microscope calibration failed';
     const result = handleAcpError(raw);
 
     expect(result.isAcpError).toBe(false);
   });
 
-  // --- 優先順序 ---
-  it("AccessDeniedException 應優先於 scope 比對", () => {
+  // --- Priority order ---
+  it("AccessDeniedException should take priority over scope matching", () => {
     const raw = 'AccessDeniedException: scope not granted';
     const result = handleAcpError(raw);
 
-    expect(result.userMessage).toContain("ACP 權限不足");
+    expect(result.userMessage).toContain("Insufficient ACP permissions");
   });
 
-  it("pairing required 應優先於 scope 比對", () => {
+  it("pairing required should take priority over scope matching", () => {
     const raw = 'pairing required: scope verification pending';
     const result = handleAcpError(raw);
 
-    expect(result.userMessage).toContain("device pairing");
+    expect(result.userMessage).toContain("Device pairing");
   });
 
-  // --- 無法辨識的錯誤 ---
-  it("無法辨識的錯誤應回傳通用 ACP 錯誤訊息", () => {
+  // --- Unrecognized errors ---
+  it("unrecognized errors should return a generic ACP error message", () => {
     const raw = 'Some completely unknown ACP error occurred';
     const result = handleAcpError(raw);
 
     expect(result.isAcpError).toBe(false);
     expect(result.userMessage).toContain("npm run validate");
-    expect(result.fixSuggestions).toContain("請執行 `npm run validate` 進行健康檢查");
+    expect(result.fixSuggestions).toContain("Run `npm run validate` for a health check");
   });
 
-  // --- stderr 記錄 ---
-  it("應將完整原始錯誤記錄至 stderr", () => {
+  // --- stderr logging ---
+  it("should log the full raw error to stderr", () => {
     const raw = 'AccessDeniedException: test error for logging';
     handleAcpError(raw);
 
@@ -99,7 +99,7 @@ describe("handleAcpError()", () => {
     );
   });
 
-  it("無法辨識的錯誤也應記錄至 stderr", () => {
+  it("unrecognized errors should also be logged to stderr", () => {
     const raw = 'Unknown error xyz';
     handleAcpError(raw);
 
@@ -108,8 +108,8 @@ describe("handleAcpError()", () => {
     );
   });
 
-  // --- 訊息長度 ---
-  it("所有回傳的 userMessage 長度應 ≤ 200 字元", () => {
+  // --- Message length ---
+  it("all returned userMessage lengths should be ≤ 200 characters", () => {
     const testCases = [
       "AccessDeniedException: test",
       "pairing required",

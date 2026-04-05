@@ -1,45 +1,48 @@
 // ============================================================
-// Session Isolator — 確保 /kiro 訊息不洩漏至主 agent 的對話 context，
-// 並為每個 Telegram 使用者維護固定的 Kiro session ID 以實現跨訊息記憶
-// 對應需求: 13.1, 13.2, 13.5
+// Session Isolator — Ensure /kiro messages do not leak into the main agent's
+// conversation context, and maintain a fixed Kiro session ID per Telegram user
+// to enable cross-message memory
+// Requirements: 13.1, 13.2, 13.5
 // ============================================================
 
-/** Session ID 前綴，與主 agent 的 session key 命名空間完全分離 */
+/** Session ID prefix, completely separated from the main agent's session key namespace */
 const SESSION_PREFIX = "kiro-telegram-";
 
 /**
- * 根據 Telegram chat ID 產生固定的 Kiro session ID。
+ * Generate a fixed Kiro session ID based on the Telegram chat ID.
  *
- * 同一個 chat ID 永遠對應同一個 session，讓 kiro-cli 能記住對話歷史。
- * 格式：`kiro-telegram-{chatId}`
+ * The same chat ID always maps to the same session, allowing kiro-cli to
+ * remember conversation history.
+ * Format: `kiro-telegram-{chatId}`
  *
- * 此命名空間與 OpenClaw 主 agent 的 session key
- * （`agent:main:telegram:direct:{chatId}`）完全不同，不會互相干擾。
+ * This namespace is completely different from the OpenClaw main agent's session key
+ * (`agent:main:telegram:direct:{chatId}`), so they do not interfere with each other.
  *
  * @param chatId - Telegram chat ID
- * @returns 固定格式的 Kiro session ID
+ * @returns Fixed-format Kiro session ID
  */
 export function getKiroSessionId(chatId: string): string {
   return `${SESSION_PREFIX}${chatId}`;
 }
 
 /**
- * 記錄 OpenClaw hook 機制對 session 隔離的已知限制。
+ * Document the known limitations of the OpenClaw hook mechanism for session isolation.
  *
- * 這些限制源自 OpenClaw 平台的 hook 架構設計，無法在 skill 層級完全解決，
- * 但已在 INSTALL.md 中記錄並提供替代方案。
+ * These limitations stem from the OpenClaw platform's hook architecture design and
+ * cannot be fully resolved at the skill level. They are documented in INSTALL.md
+ * with alternative solutions provided.
  *
- * @returns 已知限制的字串陣列
+ * @returns Array of known limitation strings
  */
 export function getIsolationLimitations(): string[] {
   return [
-    "OpenClaw 的 message:received hook 無法阻止訊息進入主 agent 的 context window，" +
-      "/kiro 訊息內容可能仍會被主 agent 看到。",
-    "建議在 SOUL.md 中加入指令，要求主 agent 忽略以 /kiro 開頭的訊息，" +
-      "作為 hook 層級隔離的補充方案。",
-    "kiro-cli 重啟後 session 可能消失，ACP Wrapper 需處理 session 不存在的情況" +
-      "（自動透過 acp/createSession 重建）。",
-    "不同 Telegram chat 之間的 Kiro session 是獨立的，但同一 chat 內的所有 /kiro " +
-      "訊息共享同一個 session（by design，用於跨訊息記憶）。",
+    "OpenClaw's message:received hook cannot prevent messages from entering the main agent's context window. " +
+      "/kiro message content may still be visible to the main agent.",
+    "It is recommended to add a directive in SOUL.md instructing the main agent to ignore messages starting with /kiro, " +
+      "as a supplementary measure to hook-level isolation.",
+    "Sessions may disappear after kiro-cli restarts. The ACP Wrapper needs to handle the case where a session does not exist " +
+      "(automatically rebuild via acp/createSession).",
+    "Kiro sessions across different Telegram chats are isolated, but all /kiro messages within the same chat " +
+      "share a single session (by design, for cross-message memory).",
   ];
 }
