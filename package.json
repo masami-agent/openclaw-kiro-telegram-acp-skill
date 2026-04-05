@@ -1,16 +1,25 @@
 {
-  "name": "openclaw-kiro-telegram-acp-skill",
+  "name": "openclaw-kiro-telegram-acp",
   "version": "0.1.0",
-  "description": "Route Telegram /kiro commands through OpenClaw to a Kiro agent via ACP",
-  "license": "MIT",
-  "engines": {
-    "node": ">=18"
-  },
+  "description": "OpenClaw Kiro Telegram ACP Skill — 透過 Telegram 與 Kiro Agent 互動",
+  "type": "module",
+  "private": true,
   "scripts": {
     "build": "tsc",
-    "check": "tsc --noEmit"
+    "test": "vitest --run",
+    "install-skill": "node dist/scripts/install.js",
+    "validate": "node dist/scripts/validate.js",
+    "build-skill": "node dist/scripts/build-skill.js"
+  },
+  "dependencies": {
+    "dotenv": "^16.4.7"
   },
   "devDependencies": {
-    "typescript": "^5.4.0"
+    "@types/node": "^22.15.0",
+    "typescript": "^5.8.0",
+    "vitest": "^3.1.0"
+  },
+  "engines": {
+    "node": ">=18.0.0"
   }
 }

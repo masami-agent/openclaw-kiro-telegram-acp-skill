@@ -1,7 +1,9 @@
-node_modules/
+# Kiro IDE 設定與 spec 檔案（不應公開）
+.kiro/
+
+# Build output
 dist/
-build/
-*.js.map
-*.d.ts
+node_modules/
+
+# Environment variables
 .env
-.DS_Store
