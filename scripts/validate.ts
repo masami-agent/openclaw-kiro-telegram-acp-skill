@@ -29,10 +29,30 @@ const execFileAsync = promisify(execFile);
 
 // 編譯後位於 dist/scripts/validate.js，需往上兩層才是專案根目錄
 const PROJECT_ROOT = resolve(import.meta.dirname ?? ".", "..", "..");
-const HOOKS_DIR = join(homedir(), ".openclaw", "workspace", "hooks");
+
+/**
+ * Workspace root（可用於 dev/CI 指向不同位置，避免硬編 ~/.openclaw/workspace）
+ *
+ * 預設：~/.openclaw/workspace
+ * 覆寫：OPENCLAW_WORKSPACE=/path/to/workspace
+ */
+const WORKSPACE_ROOT =
+  process.env.OPENCLAW_WORKSPACE?.trim() && process.env.OPENCLAW_WORKSPACE.trim().length > 0
+    ? process.env.OPENCLAW_WORKSPACE.trim()
+    : join(homedir(), ".openclaw", "workspace");
+
+const HOOKS_DIR = join(WORKSPACE_ROOT, "hooks");
 const HOOK_FILE = join(HOOKS_DIR, "kiro-telegram-handler.js");
-const AGENTS_DIR = join(homedir(), ".openclaw", "workspace", "agents");
+const AGENTS_DIR = join(WORKSPACE_ROOT, "agents");
 const ENV_FILE = join(PROJECT_ROOT, ".env");
+
+// CLI flags
+const ARGS = process.argv.slice(2);
+const DEV_MODE =
+  ARGS.includes("--mode=dev") ||
+  ARGS.includes("--dev") ||
+  ARGS.includes("--skip-install-checks") ||
+  process.env.OPENCLAW_VALIDATE_MODE === "dev";
 
 /** kiro-cli 的可能指令名稱（依優先順序嘗試） */
 const KIRO_COMMANDS = ["kiro", "kiro-cli"];
@@ -50,6 +70,15 @@ const KIRO_FALLBACK_PATHS = [
 async function tryExec(cmd: string, args: string[]): Promise<string | null> {
   try {
     const { stdout } = await execFileAsync(cmd, args, { timeout: 15_000 });
+    return stdout.trim();
+  } catch {
+    return null;
+  }
+}
+
+async function tryExecInProject(cmd: string, args: string[]): Promise<string | null> {
+  try {
+    const { stdout } = await execFileAsync(cmd, args, { timeout: 10 * 60_000, cwd: PROJECT_ROOT });
     return stdout.trim();
   } catch {
     return null;
@@ -115,6 +144,67 @@ async function checkOpenClawCli(): Promise<CheckResult> {
       "請先安裝 OpenClaw CLI。",
       "安裝後確認 `openclaw --version` 可正常執行。",
       "若已安裝但仍找不到，請確認 openclaw 的安裝路徑已加入 PATH 環境變數。",
+    ].join("\n  "),
+  };
+}
+
+/** [dev/CI] A. 專案可 build（tsc） */
+async function checkProjectBuild(): Promise<CheckResult> {
+  const name = "專案 build（tsc）";
+  const result = await tryExecInProject("npm", ["run", "build"]);
+  if (result !== null) {
+    return { name, passed: true, message: "✓ npm run build 通過" };
+  }
+  return {
+    name,
+    passed: false,
+    message: "✗ npm run build 失敗",
+    fix: [
+      "請先安裝依賴：npm ci（或 npm install）",
+      "再重試：npm run build",
+      "若為 CI 環境，請確認 Node 版本與 package-lock.json 一致。",
+    ].join("\n  "),
+  };
+}
+
+/** [dev/CI] B. 專案測試可通過 */
+async function checkProjectTests(): Promise<CheckResult> {
+  const name = "專案測試（vitest）";
+  const result = await tryExecInProject("npm", ["test"]);
+  if (result !== null) {
+    return { name, passed: true, message: "✓ npm test 通過" };
+  }
+  return {
+    name,
+    passed: false,
+    message: "✗ npm test 失敗",
+    fix: [
+      "請執行：npm test",
+      "若為首次執行，請先安裝依賴：npm ci（或 npm install）。",
+    ].join("\n  "),
+  };
+}
+
+/** [dev/CI] C. 必要專案檔案存在（不檢查 workspace 安裝檔） */
+async function checkRepoFiles(): Promise<CheckResult> {
+  const name = "Repo 檔案完整性";
+  const required = [
+    join(PROJECT_ROOT, "package.json"),
+    join(PROJECT_ROOT, "tsconfig.json"),
+    join(PROJECT_ROOT, "kiro-telegram-acp.skill"),
+    join(PROJECT_ROOT, "skill-src", "kiro-telegram-acp", "SKILL.md"),
+  ];
+  const missing = required.filter((p) => !existsSync(p));
+  if (missing.length === 0) {
+    return { name, passed: true, message: "✓ 必要檔案皆存在" };
+  }
+  return {
+    name,
+    passed: false,
+    message: `✗ 缺少必要檔案：${missing.map((p) => p.replace(PROJECT_ROOT + "/", "")).join(", ")}`,
+    fix: [
+      "請確認你位於正確的 repo root。",
+      "若為部分檔案未提交，請補齊後重新執行 validate。",
     ].join("\n  "),
   };
 }
@@ -343,14 +433,15 @@ async function main(): Promise<void> {
   console.log("═══════════════════════════════════════════════");
   console.log("");
 
-  const checks: Array<() => Promise<CheckResult>> = [
-    checkKiroCli,
-    checkOpenClawCli,
-    checkHookExists,
-    checkAgentConfig,
-    checkEnvVars,
-    checkAcpPairing,
-  ];
+  if (DEV_MODE) {
+    console.log("  mode: dev (skip install/workspace checks)");
+    console.log("  (tip) Use default mode for post-install verification in OpenClaw workspace.");
+    console.log("");
+  }
+
+  const checks: Array<() => Promise<CheckResult>> = DEV_MODE
+    ? [checkRepoFiles, checkProjectBuild, checkProjectTests]
+    : [checkKiroCli, checkOpenClawCli, checkHookExists, checkAgentConfig, checkEnvVars, checkAcpPairing];
 
   const results: CheckResult[] = [];
 

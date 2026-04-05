@@ -253,6 +253,12 @@ openclaw devices list
 npm run validate
 ```
 
+若你只是 clone 下來做開發或跑 CI（尚未安裝到 OpenClaw workspace），可用 dev 模式跳過 workspace/安裝檢查：
+
+```bash
+npm run validate -- --mode=dev
+```
+
 Health Checker 會依序檢查以下項目：
 
 1. `kiro-cli` 可用性
