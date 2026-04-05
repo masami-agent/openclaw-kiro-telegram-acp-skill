@@ -1,16 +1,16 @@
 // ============================================================
-// 共用型別定義 — openclaw-kiro-telegram-acp skill
+// Shared type definitions — openclaw-kiro-telegram-acp skill
 // ============================================================
 
 // --- Config ---
 
 export interface SkillConfig {
-  kiroAgentName: string; // 預設: "kiro"
-  kiroTimeoutMs: number; // 預設: 120000
-  kiroWrapperCmd: string; // 預設: "kiro-acp-ask"
-  allowedChatIds: string[]; // 預設: []（空=不限制）
-  replyPrefix: string; // 預設: "🤖 Kiro"
-  debugMode: boolean; // 預設: false
+  kiroAgentName: string; // Default: "kiro"
+  kiroTimeoutMs: number; // Default: 120000
+  kiroWrapperCmd: string; // Default: "kiro-acp-ask"
+  allowedChatIds: string[]; // Default: [] (empty = no restrictions)
+  replyPrefix: string; // Default: "🤖 Kiro"
+  debugMode: boolean; // Default: false
 }
 
 // --- OpenClaw Event ---
@@ -131,9 +131,9 @@ export interface KiroSessionState {
 
 export interface ErrorTracker {
   chatId: string;
-  errors: number[]; // 錯誤發生的時間戳記陣列
-  windowMs: number; // 追蹤視窗（預設 300000 = 5 分鐘）
-  threshold: number; // 觸發額外提示的閾值（預設 3）
+  errors: number[]; // Array of error occurrence timestamps
+  windowMs: number; // Tracking window (default 300000 = 5 minutes)
+  threshold: number; // Threshold for triggering additional hints (default 3)
 }
 
 // --- ACP Wrapper ---

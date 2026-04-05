@@ -1,12 +1,12 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
 import type { SkillConfig } from "../../types/index.js";
 
-// 儲存原始 env 以便每次測試後還原
+// Save original env to restore after each test
 const originalEnv = { ...process.env };
 
-// 動態 import 以確保每次測試都能讀取到最新的 process.env
+// Dynamic import to ensure each test reads the latest process.env
 async function importLoadConfig() {
-  // 清除模組快取，讓 dotenv.config() 與 process.env 重新讀取
+  // Clear module cache so dotenv.config() and process.env are re-read
   vi.resetModules();
   const mod = await import("../config.js");
   return mod.loadConfig;
@@ -14,7 +14,7 @@ async function importLoadConfig() {
 
 describe("loadConfig()", () => {
   beforeEach(() => {
-    // 清除所有相關環境變數，確保測試隔離
+    // Clear all related environment variables to ensure test isolation
     delete process.env.KIRO_AGENT_NAME;
     delete process.env.KIRO_TIMEOUT_MS;
     delete process.env.KIRO_WRAPPER_CMD;
@@ -24,11 +24,11 @@ describe("loadConfig()", () => {
   });
 
   afterEach(() => {
-    // 還原原始環境變數
+    // Restore original environment variables
     process.env = { ...originalEnv };
   });
 
-  it("應回傳所有欄位的預設值（未設定任何環境變數時）", async () => {
+  it("should return default values for all fields (when no env vars are set)", async () => {
     const loadConfig = await importLoadConfig();
     const config: SkillConfig = loadConfig();
 
@@ -40,7 +40,7 @@ describe("loadConfig()", () => {
     expect(config.debugMode).toBe(false);
   });
 
-  it("應使用環境變數覆寫預設值", async () => {
+  it("should override defaults with environment variables", async () => {
     process.env.KIRO_AGENT_NAME = "my-kiro";
     process.env.KIRO_TIMEOUT_MS = "60000";
     process.env.KIRO_WRAPPER_CMD = "custom-wrapper";
@@ -59,7 +59,7 @@ describe("loadConfig()", () => {
     expect(config.debugMode).toBe(true);
   });
 
-  it("KIRO_DEBUG 設為 '1' 時 debugMode 應為 true", async () => {
+  it("KIRO_DEBUG set to '1' should result in debugMode being true", async () => {
     process.env.KIRO_DEBUG = "1";
 
     const loadConfig = await importLoadConfig();
@@ -68,7 +68,7 @@ describe("loadConfig()", () => {
     expect(config.debugMode).toBe(true);
   });
 
-  it("KIRO_DEBUG 設為非 true/1 的值時 debugMode 應為 false", async () => {
+  it("KIRO_DEBUG set to non-true/1 value should result in debugMode being false", async () => {
     process.env.KIRO_DEBUG = "yes";
 
     const loadConfig = await importLoadConfig();
@@ -77,7 +77,7 @@ describe("loadConfig()", () => {
     expect(config.debugMode).toBe(false);
   });
 
-  it("ALLOWED_CHAT_IDS 含有空白時應正確 trim", async () => {
+  it("ALLOWED_CHAT_IDS with whitespace should be trimmed correctly", async () => {
     process.env.ALLOWED_CHAT_IDS = " 111 , 222 , 333 ";
 
     const loadConfig = await importLoadConfig();
@@ -86,7 +86,7 @@ describe("loadConfig()", () => {
     expect(config.allowedChatIds).toEqual(["111", "222", "333"]);
   });
 
-  it("KIRO_TIMEOUT_MS 為無效值時應拋出錯誤", async () => {
+  it("KIRO_TIMEOUT_MS with invalid value should throw an error", async () => {
     process.env.KIRO_TIMEOUT_MS = "not-a-number";
 
     const loadConfig = await importLoadConfig();
@@ -95,7 +95,7 @@ describe("loadConfig()", () => {
     expect(() => loadConfig()).toThrow("not-a-number");
   });
 
-  it("KIRO_TIMEOUT_MS 為負數時應拋出錯誤", async () => {
+  it("KIRO_TIMEOUT_MS with negative value should throw an error", async () => {
     process.env.KIRO_TIMEOUT_MS = "-5000";
 
     const loadConfig = await importLoadConfig();
@@ -103,7 +103,7 @@ describe("loadConfig()", () => {
     expect(() => loadConfig()).toThrow("KIRO_TIMEOUT_MS");
   });
 
-  it("KIRO_TIMEOUT_MS 為 0 時應拋出錯誤", async () => {
+  it("KIRO_TIMEOUT_MS with 0 should throw an error", async () => {
     process.env.KIRO_TIMEOUT_MS = "0";
 
     const loadConfig = await importLoadConfig();

@@ -6,7 +6,7 @@ describe("Reply Suppressor", () => {
 
   beforeEach(() => {
     stderrSpy = vi.spyOn(process.stderr, "write").mockImplementation(() => true);
-    // 使用 fake timers 控制時間
+    // Use fake timers to control time
     vi.useFakeTimers();
   });
 
@@ -15,84 +15,84 @@ describe("Reply Suppressor", () => {
     vi.restoreAllMocks();
   });
 
-  // --- markSession → shouldCancel 正常流程 ---
-  describe("markSession() → shouldCancel() 正常流程", () => {
-    it("標記後 shouldCancel 應回傳 true", () => {
+  // --- markSession → shouldCancel normal flow ---
+  describe("markSession() → shouldCancel() normal flow", () => {
+    it("shouldCancel should return true after marking", () => {
       const key = "test-session-1";
       markSession(key);
       expect(shouldCancel(key)).toBe(true);
     });
 
-    it("未標記的 session shouldCancel 應回傳 false", () => {
+    it("shouldCancel should return false for unmarked sessions", () => {
       expect(shouldCancel("non-existent-session")).toBe(false);
     });
 
-    it("markSession 應為同步操作（不回傳 Promise）", () => {
+    it("markSession should be a synchronous operation (does not return a Promise)", () => {
       const result = markSession("sync-test");
       expect(result).toBeUndefined();
     });
   });
 
-  // --- TTL 過期 ---
-  describe("TTL 過期行為", () => {
-    it("TTL 30 秒過期後 shouldCancel 應回傳 false", () => {
+  // --- TTL expiration ---
+  describe("TTL expiration behavior", () => {
+    it("shouldCancel should return false after 30-second TTL expires", () => {
       const key = "ttl-test-session";
       markSession(key);
 
-      // 前進 30 秒（TTL 邊界）
+      // Advance 30 seconds (TTL boundary)
       vi.advanceTimersByTime(30_000);
 
       expect(shouldCancel(key)).toBe(false);
     });
 
-    it("TTL 未過期時 shouldCancel 應回傳 true", () => {
+    it("shouldCancel should return true when TTL has not expired", () => {
       const key = "ttl-not-expired";
       markSession(key);
 
-      // 前進 29 秒（未過期）
+      // Advance 29 seconds (not expired)
       vi.advanceTimersByTime(29_999);
 
       expect(shouldCancel(key)).toBe(true);
     });
   });
 
-  // --- 消費後標記清除 ---
-  describe("shouldCancel 消費後標記清除", () => {
-    it("shouldCancel 消費後再次呼叫應回傳 false", () => {
+  // --- Mark cleared after consumption ---
+  describe("shouldCancel mark cleared after consumption", () => {
+    it("shouldCancel should return false on second call after consumption", () => {
       const key = "consume-test";
       markSession(key);
 
-      // 第一次消費
+      // First consumption
       expect(shouldCancel(key)).toBe(true);
-      // 第二次應回傳 false（已被消費）
+      // Second should return false (already consumed)
       expect(shouldCancel(key)).toBe(false);
     });
   });
 
-  // --- 多 session 獨立性 ---
-  describe("多 session 獨立性", () => {
-    it("不同 session key 應互不影響", () => {
+  // --- Multi-session independence ---
+  describe("Multi-session independence", () => {
+    it("different session keys should not affect each other", () => {
       markSession("session-a");
       markSession("session-b");
 
       expect(shouldCancel("session-a")).toBe(true);
       expect(shouldCancel("session-b")).toBe(true);
-      // 兩者都已消費
+      // Both consumed
       expect(shouldCancel("session-a")).toBe(false);
       expect(shouldCancel("session-b")).toBe(false);
     });
   });
 
-  // --- stderr 日誌記錄 ---
-  describe("stderr 日誌記錄", () => {
-    it("markSession 應記錄至 stderr", () => {
+  // --- stderr logging ---
+  describe("stderr logging", () => {
+    it("markSession should log to stderr", () => {
       markSession("log-test");
       expect(stderrSpy).toHaveBeenCalledWith(
         expect.stringContaining('marked session="log-test"'),
       );
     });
 
-    it("shouldCancel 取消時應記錄至 stderr", () => {
+    it("shouldCancel cancellation should log to stderr", () => {
       markSession("cancel-log-test");
       shouldCancel("cancel-log-test");
       expect(stderrSpy).toHaveBeenCalledWith(
@@ -103,7 +103,7 @@ describe("Reply Suppressor", () => {
 
   // --- getRecentLogs ---
   describe("getRecentLogs()", () => {
-    it("應回傳最近的操作日誌", () => {
+    it("should return recent operation logs", () => {
       markSession("log-a");
       markSession("log-b");
       shouldCancel("log-a");
@@ -116,8 +116,8 @@ describe("Reply Suppressor", () => {
       expect(actions).toContain("cancelled");
     });
 
-    it("預設回傳最多 10 筆日誌", () => {
-      // 產生超過 10 筆日誌
+    it("should return at most 10 log entries by default", () => {
+      // Generate more than 10 log entries
       for (let i = 0; i < 15; i++) {
         markSession(`bulk-${i}`);
       }
@@ -126,7 +126,7 @@ describe("Reply Suppressor", () => {
       expect(recentLogs.length).toBeLessThanOrEqual(10);
     });
 
-    it("指定 count 應限制回傳筆數", () => {
+    it("specifying count should limit the number of returned entries", () => {
       for (let i = 0; i < 5; i++) {
         markSession(`count-${i}`);
       }
