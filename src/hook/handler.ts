@@ -205,7 +205,7 @@ function extractChatId(event: OpenClawEvent): string {
 // ============================================================
 
 /**
- * 處理 /kiro 指令：呼叫 ACP Wrapper 並傳送回覆至 Telegram。
+ * Handle /kiro command: call agent and send reply to Telegram.
  */
 async function handleKiroQuery(chatId: string, query: string, sessionId: string): Promise<void> {
   try {
@@ -302,7 +302,7 @@ async function handleKiroQuery(chatId: string, query: string, sessionId: string)
  *
  * message:received（void hook）：
  *   驗證 channel、chatId、/kiro prefix → markSession()（同步）
- *   → getKiroSessionId() → execFile 呼叫 ACP Wrapper → Error Formatter → Telegram
+ *   → getKiroSessionId() → execFile calls agent → Error Formatter → Telegram
  *
  * message:sending（可回傳 { cancel: true }）：
  *   shouldCancel() 檢查是否需取消主 agent 回覆
@@ -353,7 +353,7 @@ const handler = (event: OpenClawEvent): void | { cancel: true } => {
     return;
   }
 
-  // 非同步呼叫 ACP Wrapper（不阻塞 gateway event loop）
+  // Async agent call (non-blocking gateway event loop)
   void handleKiroQuery(chatId, query, kiroSessionId);
 };
 

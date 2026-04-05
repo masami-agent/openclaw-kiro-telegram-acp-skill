@@ -57,7 +57,7 @@ function purgeExpired(): void {
  * Mark a session as pending (called during the message:received phase).
  *
  * This is a synchronous operation to ensure the mark is set before any async
- * operations (such as ACP Wrapper calls), preventing the message:sending hook
+ * operations (such as agent calls), preventing the message:sending hook
  * from missing the cancel signal due to timing issues.
  */
 export function markSession(sessionKey: string): void {

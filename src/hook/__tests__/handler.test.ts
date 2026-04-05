@@ -125,9 +125,9 @@ describe("Hook Handler", () => {
     vi.restoreAllMocks();
   });
 
-  // ── /kiro message triggers ACP Wrapper call ───────────────
-  describe("/kiro message triggers ACP Wrapper call", () => {
-    it("should use execFile to call ACP Wrapper with correct arguments", async () => {
+  // ── /kiro message triggers agent call ───────────────
+  describe("/kiro message triggers agent call", () => {
+    it("should use execFile to call agent with correct arguments", async () => {
       const event = createEvent({
         context: { content: "/kiro what is TypeScript?" },
       });
@@ -146,7 +146,7 @@ describe("Hook Handler", () => {
       expect(args).toContain("--json");
     });
 
-    it("should send ACP Wrapper stdout reply to Telegram", async () => {
+    it("should send agent stdout reply to Telegram", async () => {
       mockExecFileSuccess("This is the Kiro reply");
 
       const event = createEvent();
@@ -172,7 +172,7 @@ describe("Hook Handler", () => {
       handler(event);
       await flushPromises();
 
-      // Should not call ACP Wrapper
+      // Should not call agent
       expect(mockExecFile).not.toHaveBeenCalled();
 
       // Should send usage message
@@ -181,7 +181,7 @@ describe("Hook Handler", () => {
       expect(body.text).toContain("Usage:");
     });
 
-    it("ACP Wrapper error should be processed through Error Formatter and send a friendly message", async () => {
+    it("agent error should be processed through Error Formatter and send a friendly message", async () => {
       mockExecFileError(3, "timeout after 120000ms");
 
       const event = createEvent();
@@ -197,7 +197,7 @@ describe("Hook Handler", () => {
 
   // ── Non-/kiro messages should not trigger processing ──────
   describe("Non-/kiro messages should not trigger processing", () => {
-    it("regular messages should not trigger ACP Wrapper", () => {
+    it("regular messages should not trigger agent", () => {
       const event = createEvent({
         context: { content: "hello world" },
       });

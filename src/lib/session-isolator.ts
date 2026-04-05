@@ -40,7 +40,7 @@ export function getIsolationLimitations(): string[] {
       "/kiro message content may still be visible to the main agent.",
     "It is recommended to add a directive in SOUL.md instructing the main agent to ignore messages starting with /kiro, " +
       "as a supplementary measure to hook-level isolation.",
-    "Sessions may disappear after kiro-cli restarts. The ACP Wrapper needs to handle the case where a session does not exist " +
+    "Sessions may disappear after kiro-cli restarts. The agent call needs to handle the case where a session does not exist " +
       "(automatically rebuild via acp/createSession).",
     "Kiro sessions across different Telegram chats are isolated, but all /kiro messages within the same chat " +
       "share a single session (by design, for cross-message memory).",

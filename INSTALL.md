@@ -253,21 +253,14 @@ openclaw devices list
 npm run validate
 ```
 
-若你只是 clone 下來做開發或跑 CI（尚未安裝到 OpenClaw workspace），可用 dev 模式跳過 workspace/安裝檢查：
-
-```bash
-npm run validate -- --mode=dev
-```
-
 Health Checker 會依序檢查以下項目：
 
 1. `kiro-cli` 可用性
 2. `openclaw` CLI 可用性
 3. Hook 檔案存在且已啟用
 4. Agent 設定檔格式正確
-5. ACP Wrapper 可執行
-6. 環境變數已設定
-7. ACP device pairing 狀態
+5. 環境變數已設定
+6. ACP device pairing 狀態
 
 **預期結果**：所有檢查項目顯示 `✓` 通過。若有失敗項目，Health Checker 會提供具體的修復建議。
 
@@ -323,7 +316,7 @@ OpenClaw 的 `message:received` hook 機制存在以下已知限制：
 
 2. **`message:received` 是 void hook**。在 OpenClaw 2026.4.2 中，此 hook 的回傳值會被丟棄，`{ suppress: true }` 不會生效。
 
-3. **kiro-cli 重啟後 session 可能消失**。ACP Wrapper 會自動透過 `acp/createSession` 重建 session，但先前的對話記憶將從此次重新開始。
+3. **kiro-cli 重啟後 session 可能消失**。Agent 會自動重建 session，但先前的對話記憶將從此次重新開始。
 
 4. **同一 chat 內的所有 `/kiro` 訊息共享同一個 session**（格式：`kiro-telegram-{chatId}`）。這是設計上的選擇，用於實現跨訊息記憶。不同 Telegram chat 之間的 Kiro session 則是完全獨立的。
 
