@@ -54,14 +54,12 @@ chore: 雜務（CI、build config）
 這兩個資料夾的共用檔案必須保持一致：
 
 - `hook-template.ts`
-- `kiro-acp-ask.js`
 - `kiro-agent-template.json`
 
 改了其中一邊，必須同步另一邊。每次 commit 前執行：
 
 ```bash
 diff examples/hook-template.ts skill-src/kiro-telegram-acp/references/hook-template.ts
-diff examples/kiro-acp-ask.js skill-src/kiro-telegram-acp/references/kiro-acp-ask.js
 diff examples/kiro-agent-template.json skill-src/kiro-telegram-acp/references/kiro-agent-template.json
 ```
 
@@ -95,7 +93,7 @@ diff -r /tmp/skill-verify/ skill-src/kiro-telegram-acp/
 
 ### 可執行腳本
 
-- CLI wrapper（如 `kiro-acp-ask.js`）必須有 executable 權限：`chmod +x`
+- 可執行腳本必須有 executable 權限：`chmod +x`
 - 必須有 shebang：`#!/usr/bin/env node`
 
 ### 安全

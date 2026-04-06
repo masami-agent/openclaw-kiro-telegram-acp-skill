@@ -16,7 +16,7 @@ import type { AcpErrorResult } from "../types/index.js";
  *
  * In all cases, the full raw error is logged to stderr.
  *
- * @param rawError - Raw error message returned by the ACP Wrapper
+ * @param rawError - Raw error message returned by the agent call
  * @returns AcpErrorResult containing identification result, user message, and fix suggestions
  */
 export function handleAcpError(rawError: string): AcpErrorResult {

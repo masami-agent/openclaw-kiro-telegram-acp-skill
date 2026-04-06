@@ -110,10 +110,10 @@ function truncateMessage(message: string, maxLength: number = MAX_USER_MESSAGE_L
 }
 
 /**
- * Parse ACP Wrapper stdout/stderr output, identify error type, and format.
+ * Parse agent stdout/stderr output, identify error type, and format.
  *
- * @param rawOutput - Raw output from the ACP Wrapper (stdout + stderr)
- * @param exitCode - ACP Wrapper exit code (0=success, 1=usage, 2=connection failure, 3=timeout)
+ * @param rawOutput - Raw output from the agent call (stdout + stderr)
+ * @param exitCode - Agent exit code (0=success, 1=usage, 2=connection failure, 3=timeout)
  * @returns FormattedError containing user message, debug message, and error classification
  */
 export function formatError(rawOutput: string, exitCode: number): FormattedError {
