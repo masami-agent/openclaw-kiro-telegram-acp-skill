@@ -476,6 +476,12 @@ async function main(): Promise<void> {
   } else {
     console.log(`  ⚠️  ${failedCount} 項檢查未通過 (${passedCount}/${results.length} 通過)`);
     console.log("  請依上方修復建議逐一處理後，重新執行 npm run validate。");
+
+    if (!DEV_MODE) {
+      console.log("");
+      console.log("  (hint) 若你只是剛 clone repo、想做開發/跑 CI（尚未安裝到 OpenClaw workspace），可改用 dev 模式：");
+      console.log("        npm run validate -- --mode=dev");
+    }
   }
   console.log("───────────────────────────────────────────────");
   console.log("");
